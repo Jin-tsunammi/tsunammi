@@ -1,0 +1,26 @@
+.show-up-enter-action, .show-up-leave-active {
+  transition: all .5s ease;
+}
+
+.show-up-enter-from, .show-up-leave-to {
+  opacity: 0;
+}
+
+.show-up-enter-to, .show-up-leave-from {
+  opacity: 1;
+}
+
+//slide from the right
+.slide-right-enter-active, .slide-right-leave-active {
+  transition: transform .2s ease;
+}
+
+.slide-right-enter-from,
+.slide-right-leave-to {
+  transform: translateX(100%);
+}
+
+.slide-right-enter-to,
+.slide-right-leave-from {
+  transform: translateX(0);
+}

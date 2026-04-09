@@ -1,0 +1,47 @@
+<svg width="344" height="88" viewBox="0 0 344 88" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_4080_13239)">
+<g opacity="0.24">
+<g opacity="0.7">
+<mask id="mask0_4080_13239" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="-76" y="-27" width="735" height="425">
+<path d="M-74.8806 123.289L327.549 -25.9168L658 247.969L255.571 397.175L-74.8806 123.289Z" fill="white" stroke="white"/>
+</mask>
+<g mask="url(#mask0_4080_13239)">
+<path d="M152.635 341.819L657.383 154.677" stroke="white"/>
+<path d="M134.615 326.884L639.363 139.741" stroke="white"/>
+<path d="M116.595 311.948L621.344 124.806" stroke="white"/>
+<path d="M98.5762 297.013L603.324 109.87" stroke="white"/>
+<path d="M80.5532 282.077L585.302 94.9348" stroke="white"/>
+<path d="M62.5349 267.141L567.283 79.9989" stroke="white"/>
+<path d="M44.5155 252.205L549.262 65.0632" stroke="white"/>
+<path d="M26.4934 237.269L531.242 50.1274" stroke="white"/>
+<path d="M8.47322 219.143L513.22 32" stroke="white"/>
+<path d="M-9.54808 207.398L495.201 20.2545" stroke="white"/>
+<path d="M-27.5672 192.462L477.18 5.32108" stroke="white"/>
+<path d="M-45.5894 177.527L459.16 -9.61529" stroke="white"/>
+<path d="M-63.6074 162.591L441.14 -24.5517" stroke="white"/>
+<path d="M-81.6267 147.655L423.12 -39.4883" stroke="white"/>
+<path d="M-99.65 132.72L405.098 -54.4215" stroke="white"/>
+<path d="M-117.669 117.784L387.077 -69.3581" stroke="white"/>
+<path d="M-135.69 102.848L369.058 -84.2944" stroke="white"/>
+<path d="M-153.711 87.9121L351.038 -99.2309" stroke="white"/>
+<path d="M-171.731 72.9765L333.016 -114.164" stroke="white"/>
+<path d="M747.486 229.356L333.016 -114.165" stroke="white"/>
+<path d="M691.403 250.15L276.932 -93.371" stroke="white"/>
+<path d="M635.32 270.943L220.849 -72.5777" stroke="white"/>
+<path d="M579.237 291.737L164.767 -51.7845" stroke="white"/>
+<path d="M523.154 312.531L108.686 -30.9907" stroke="white"/>
+<path d="M467.071 333.324L52.6002 -10.1981" stroke="white"/>
+<path d="M410.988 354.118L-3.48255 10.5956" stroke="white"/>
+<path d="M354.904 374.911L-59.5663 31.3891" stroke="white"/>
+<path d="M298.821 395.705L-115.649 52.1829" stroke="white"/>
+<path d="M242.738 416.498L-171.732 72.9765" stroke="white"/>
+</g>
+</g>
+</g>
+</g>
+<defs>
+<clipPath id="clip0_4080_13239">
+<rect width="344" height="88" rx="8" fill="white"/>
+</clipPath>
+</defs>
+</svg>

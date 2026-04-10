@@ -1,0 +1,2422 @@
+definitions:
+  apperrors.AppError:
+    properties:
+      http_status:
+        type: integer
+      message:
+        type: string
+    type: object
+  auth.TokenPair:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+    type: object
+  model.Account:
+    properties:
+      api_key:
+        example: ZXc4Vb7N6mK5jH4gF3dS2aQ1wE9rT8yU
+        type: string
+      api_name:
+        example: kucoin
+        type: string
+      created_at:
+        example: "2025-10-01T03:12:20Z"
+        type: string
+      exchange_account_id:
+        example: 1234567890
+        type: integer
+      exchange_id:
+        example: 1
+        type: integer
+      exchange_name:
+        example: Binance
+        type: string
+      id:
+        example: 1234567890
+        type: integer
+      name:
+        example: My Account
+        type: string
+      passphrase:
+        example: dev_passphrase_!@#
+        type: string
+      secret_key:
+        example: 9f7e6d5c4b3a2910ffeeddccbbaa99887766554433221100aabbccddeeff0011
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/model.Status'
+        example: active
+      user_id:
+        example: 1234567890
+        type: integer
+      withdraw_limit:
+        example: 25
+        type: integer
+    type: object
+  model.AccountResponse:
+    properties:
+      account_id:
+        example: 1234567890
+        type: integer
+      api_name:
+        example: kucoin
+        type: string
+      created_at:
+        example: "2025-10-01T03:12:20Z"
+        type: string
+      exchange:
+        example: Binance
+        type: string
+      id:
+        example: 1234567890
+        type: integer
+      name:
+        example: My Account
+        type: string
+      status:
+        allOf:
+        - $ref: '#/definitions/model.Status'
+        example: active
+      total_deposits_sol:
+        example: 1000.294
+        type: number
+      total_deposits_usd:
+        example: 2000294
+        type: number
+      withdraw_limit:
+        example: 25
+        type: integer
+    type: object
+  model.AddExchangeAccountReq:
+    properties:
+      api_key:
+        type: string
+      exchange_id:
+        type: integer
+      name:
+        type: string
+      passphrase:
+        type: string
+      secret_key:
+        type: string
+    required:
+    - api_key
+    - exchange_id
+    - name
+    - passphrase
+    - secret_key
+    type: object
+  model.CampaignRequest:
+    properties:
+      budget:
+        type: number
+      goal_percentage_change:
+        minimum: 0
+        type: number
+      max_time_between_transactions:
+        minimum: 0
+        type: integer
+      max_transactions_amount:
+        type: number
+      min_time_between_transactions:
+        minimum: 0
+        type: integer
+      min_transactions_amount:
+        type: number
+      parallel_transactions_amount:
+        type: integer
+      slippage:
+        maximum: 100
+        minimum: 0
+        type: number
+      transaction_speed:
+        allOf:
+        - $ref: '#/definitions/model.TransactionSpeed'
+        enum:
+        - default
+        - fast
+        - extra
+    type: object
+  model.CampaignSummary:
+    properties:
+      budget:
+        type: number
+      campaign_id:
+        type: string
+      project_id:
+        type: integer
+      spent_budget:
+        type: number
+      status:
+        type: string
+      token_mint_from:
+        type: string
+      token_mint_to:
+        type: string
+      type_name:
+        type: string
+    type: object
+  model.CampaignType:
+    properties:
+      name:
+        type: string
+    type: object
+  model.ChangeEmailRequest:
+    properties:
+      code:
+        type: string
+      email:
+        type: string
+    type: object
+  model.CreateProjectReq:
+    properties:
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  model.Deposit:
+    properties:
+      amount:
+        type: string
+      created_at:
+        type: string
+      external_id:
+        type: string
+      id:
+        type: integer
+      order_id:
+        type: integer
+      status:
+        $ref: '#/definitions/model.DepositStatus'
+      transaction_id:
+        type: string
+      updated_at:
+        type: string
+      wallet_id:
+        type: integer
+    type: object
+  model.DepositHistoryResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      project_id:
+        type: integer
+      project_name:
+        type: string
+      status:
+        $ref: '#/definitions/model.DepositStatus'
+      total_sum_sol:
+        type: number
+      transactions:
+        items:
+          $ref: '#/definitions/model.Transaction'
+        type: array
+    type: object
+  model.DepositProcessResponse:
+    properties:
+      order_id:
+        type: integer
+      status:
+        $ref: '#/definitions/model.DepositStatus'
+    type: object
+  model.DepositResponse:
+    properties:
+      amount:
+        type: number
+      fee:
+        type: number
+      order_id:
+        type: integer
+      status:
+        $ref: '#/definitions/model.DepositStatus'
+    type: object
+  model.DepositSolanaReq:
+    properties:
+      account_id:
+        type: integer
+      max_amount:
+        type: number
+      min_amount:
+        type: number
+      project_id:
+        type: integer
+      quantity:
+        type: integer
+    required:
+    - account_id
+    - max_amount
+    - min_amount
+    - quantity
+    type: object
+  model.DepositStatus:
+    enum:
+    - PENDING
+    - COMPLETED
+    - FAILED
+    - AWAITING_APPROVAL
+    type: string
+    x-enum-varnames:
+    - DepositPending
+    - DepositCompleted
+    - DepositFailed
+    - DepositAwaitingApproval
+  model.EstimatePullRequest:
+    properties:
+      budget:
+        type: number
+      dest_token_mint:
+        type: string
+      project_id:
+        type: integer
+      slippage:
+        type: number
+      source_token_mint:
+        type: string
+      transaction_speed:
+        allOf:
+        - $ref: '#/definitions/model.TransactionSpeed'
+        enum:
+        - default
+        - fast
+        - extra
+    required:
+    - budget
+    - dest_token_mint
+    - project_id
+    - slippage
+    - source_token_mint
+    - transaction_speed
+    type: object
+  model.Exchange:
+    properties:
+      id:
+        example: 1234567890
+        type: integer
+      name:
+        example: Binance
+        type: string
+    type: object
+  model.GenerateWalletsReq:
+    properties:
+      count:
+        minimum: 1
+        type: integer
+      project_ids:
+        items:
+          type: integer
+        type: array
+    required:
+    - count
+    - project_ids
+    type: object
+  model.ImportWalletsReq:
+    properties:
+      private_keys:
+        items:
+          type: string
+        type: array
+      project_ids:
+        items:
+          type: integer
+        type: array
+    required:
+    - private_keys
+    - project_ids
+    type: object
+  model.MonitorWalletsReq:
+    properties:
+      before:
+        description: base58 encoded transaction signature
+        type: string
+      page_size:
+        type: integer
+      wallet_ids:
+        items:
+          type: integer
+        type: array
+    type: object
+  model.MonitorWalletsResp:
+    properties:
+      balance:
+        example: 100.294
+        type: number
+      public_key:
+        example: 88888888SOL88888888SOL88888888SOL8888888
+        type: string
+      transactions:
+        items:
+          $ref: '#/definitions/solanarpc.WalletTransaction'
+        type: array
+      wallet_id:
+        example: 1234567890
+        type: integer
+    type: object
+  model.PrivateKey:
+    properties:
+      private_key:
+        example: 55bjLUoWhf2dFWnGEeLzCBdf5AuuJgWwRh7HghN2LoimnmjWz3qNgmni64x6nM3uTWqRNAET2cwef9pz21Zv4C2S
+        type: string
+    required:
+    - private_key
+    type: object
+  model.Project:
+    properties:
+      created_at:
+        example: "2025-10-01T03:12:20Z"
+        type: string
+      id:
+        example: 1234567890
+        type: integer
+      name:
+        example: My Project
+        type: string
+      user_id:
+        example: 1234567890
+        type: integer
+      wallet_count:
+        example: 10
+        type: integer
+    type: object
+  model.ProjectWithWalletsResponse:
+    properties:
+      balance_sol:
+        example: 1000.294
+        type: number
+      created_at:
+        example: "2025-10-01T03:12:20Z"
+        type: string
+      id:
+        example: 1234567890
+        type: integer
+      last_sync:
+        example: "2025-10-01T03:12:20Z"
+        type: string
+      name:
+        example: My Project
+        type: string
+      rent_total:
+        example: 5
+        type: number
+      total_balance_sol:
+        example: 1000.294
+        type: number
+      total_balance_usd:
+        example: 2000294
+        type: number
+      user_id:
+        example: 1234567890
+        type: integer
+      wallet_count:
+        example: 10
+        type: integer
+      wallets:
+        items:
+          $ref: '#/definitions/model.WalletResponse'
+        type: array
+    type: object
+  model.SendCode:
+    properties:
+      email:
+        type: string
+    type: object
+  model.SignInJWTResp:
+    properties:
+      access_token:
+        type: string
+      refresh_token:
+        type: string
+    type: object
+  model.SignInResp:
+    properties:
+      jwt_info:
+        $ref: '#/definitions/model.SignInJWTResp'
+      user:
+        $ref: '#/definitions/model.User'
+    type: object
+  model.SignInWithEmail:
+    properties:
+      code:
+        type: string
+      email:
+        type: string
+    type: object
+  model.SignUpWithEmail:
+    properties:
+      code:
+        type: string
+      email:
+        type: string
+    type: object
+  model.SolanaVerifyRequest:
+    properties:
+      publicAddress:
+        type: string
+      signedMessage:
+        type: string
+    required:
+    - publicAddress
+    - signedMessage
+    type: object
+  model.Status:
+    enum:
+    - active
+    - inactive
+    - pending
+    - deleted
+    - pending
+    - success
+    - creation_pending
+    - import_pending
+    type: string
+    x-enum-varnames:
+    - AccountActive
+    - AccountInactive
+    - AccountPending
+    - AccountDeleted
+    - DefaultAccountStatus
+    - Success
+    - CreationPending
+    - ImportPending
+  model.SwapCampaign:
+    properties:
+      budget:
+        type: number
+      created_at:
+        type: string
+      current_price:
+        type: string
+      goal_percent_change:
+        type: number
+      goal_price:
+        type: string
+      id:
+        type: string
+      max_time_between_transactions:
+        type: integer
+      max_transactions_budget:
+        type: number
+      min_time_between_transactions:
+        type: integer
+      min_transactions_budget:
+        type: number
+      parallel_transactions_amount:
+        type: integer
+      pool_id:
+        type: string
+      project_id:
+        type: integer
+      slippage_bps:
+        type: integer
+      started_price:
+        type: string
+      status:
+        type: string
+      token_mint_from:
+        type: string
+      token_mint_to:
+        type: string
+      transaction_speed:
+        $ref: '#/definitions/model.TransactionSpeed'
+      type:
+        $ref: '#/definitions/model.CampaignType'
+      updated_at:
+        type: string
+      using_jito:
+        type: boolean
+    type: object
+  model.SwapTransaction:
+    properties:
+      address_from:
+        type: string
+      address_to:
+        type: string
+      amount_token_from:
+        type: string
+      amount_token_to:
+        type: string
+      campaign_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      message:
+        type: string
+      pool_id:
+        type: string
+      status:
+        type: string
+      token_mint_from:
+        type: string
+      token_mint_to:
+        type: string
+      transaction_hash:
+        type: string
+    type: object
+  model.TargetPullDownRequest:
+    properties:
+      budget:
+        type: number
+      budget_percent:
+        type: number
+      goal_percentage_change:
+        type: number
+      max_time_between_transactions:
+        type: integer
+      max_transactions_budget:
+        type: number
+      min_time_between_transactions:
+        type: integer
+      min_transactions_budget:
+        type: number
+      parallel_transactions_amount:
+        type: integer
+      project_id:
+        type: integer
+      slippage:
+        type: number
+      source_token_mint:
+        type: string
+      transaction_speed:
+        $ref: '#/definitions/model.TransactionSpeed'
+      using_jito:
+        type: boolean
+    type: object
+  model.TargetPullEstimateResponse:
+    properties:
+      budget_sol:
+        type: number
+      rent_sol:
+        type: number
+      tip_sol:
+        type: number
+    type: object
+  model.TargetPullResponse:
+    properties:
+      campaign_id:
+        type: string
+    type: object
+  model.TargetPullUpRequest:
+    properties:
+      budget:
+        type: number
+      budget_percent:
+        type: number
+      dest_token_mint:
+        type: string
+      goal_percentage_change:
+        type: number
+      max_time_between_transactions:
+        type: integer
+      max_transactions_budget:
+        type: number
+      min_time_between_transactions:
+        type: integer
+      min_transactions_budget:
+        type: number
+      parallel_transactions_amount:
+        type: integer
+      project_id:
+        type: integer
+      slippage:
+        type: number
+      transaction_speed:
+        $ref: '#/definitions/model.TransactionSpeed'
+      using_jito:
+        type: boolean
+    type: object
+  model.TipFloorSOL:
+    properties:
+      default:
+        example: 5e-06
+        type: number
+      extra:
+        example: 0.0002
+        type: number
+      fast:
+        example: 1e-05
+        type: number
+    type: object
+  model.Transaction:
+    properties:
+      balance_sol:
+        type: number
+      public_key:
+        type: string
+      status:
+        $ref: '#/definitions/model.DepositStatus'
+      sum_sol:
+        type: number
+      transaction_id:
+        type: string
+    type: object
+  model.TransactionSpeed:
+    enum:
+    - default
+    - fast
+    - extra
+    type: string
+    x-enum-varnames:
+    - Default
+    - Fast
+    - Extra
+  model.User:
+    properties:
+      created_at:
+        example: "2025-10-01T03:12:20Z"
+        type: string
+      email:
+        example: email@example.com
+        type: string
+      id:
+        example: 1234567890
+        type: integer
+      public_key:
+        type: string
+      role_id:
+        example: 1
+        type: integer
+      updated_at:
+        example: "2025-10-01T03:12:20Z"
+        type: string
+    type: object
+  model.UserAction:
+    enum:
+    - add_api
+    - delete_api
+    - wallet_deposit
+    - wallet_import
+    - wallets_batch_create
+    type: string
+    x-enum-varnames:
+    - ActionAddAPI
+    - ActionDeleteAPI
+    - ActionWalletDeposit
+    - ActionWalletImport
+    - ActionWalletsBatchAdd
+  model.UserHistory:
+    properties:
+      action:
+        $ref: '#/definitions/model.UserAction'
+      created_at:
+        type: string
+      id:
+        type: integer
+      user_id:
+        type: integer
+      value:
+        type: string
+    type: object
+  model.Wallet:
+    properties:
+      created_at:
+        example: "2025-10-01T03:12:20Z"
+        type: string
+      id:
+        example: 1234567890
+        type: integer
+      private_key:
+        example: 55bjLUoWhf2dFWnGEeLzCBdf5AuuJgWwRh7HghN2LoimnmjWz3qNgmni64x6nM3uTWqRNAET2cwef9pz21Zv4C2S
+        type: string
+      public_key:
+        example: 88888888SOL88888888SOL88888888SOL8888888
+        type: string
+    type: object
+  model.WalletResponse:
+    properties:
+      balance_sol:
+        example: 100.294
+        type: number
+      balance_usd:
+        example: 200294
+        type: number
+      created_at:
+        example: "2025-10-01T03:12:20Z"
+        type: string
+      id:
+        example: 1234567890
+        type: integer
+      public_key:
+        example: 88888888SOL88888888SOL88888888SOL8888888
+        type: string
+      rent:
+        example: 5
+        type: number
+      tokens:
+        items:
+          $ref: '#/definitions/model.WalletToken'
+        type: array
+      tokens_balance_sol:
+        example: 100.294
+        type: number
+      tokens_balance_usd:
+        example: 200294
+        type: number
+    type: object
+  model.WalletToken:
+    properties:
+      balance:
+        example: 100
+        type: number
+      balance_sol:
+        example: 99.95
+        type: number
+      balance_usd:
+        example: 99.95
+        type: number
+      token_symbol:
+        example: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+        type: string
+    type: object
+  solanarpc.WalletTransaction:
+    properties:
+      amount:
+        example: 100.294
+        type: number
+      timestamp:
+        example: 1651366400
+        type: integer
+      transaction:
+        example: "1234567890"
+        type: string
+    type: object
+host: https://api-stage.tsunammi.io/
+info:
+  contact: {}
+  description: This is the swagger specification for Tsunammi API.
+  title: Tsunammi API
+  version: 0.0.7
+paths:
+  /accounts:
+    get:
+      description: Returns all exchange accounts for the authenticated user.
+      operationId: get-accounts-by-user
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.AccountResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get all accounts
+      tags:
+      - accounts
+    post:
+      consumes:
+      - application/json
+      description: Creates a new exchange account
+      operationId: add-exchange-account
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Payload to create an account
+        in: body
+        name: account
+        required: true
+        schema:
+          $ref: '#/definitions/model.AddExchangeAccountReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.Account'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Create exchange account
+      tags:
+      - accounts
+  /accounts/{id}:
+    delete:
+      description: Deletes a specific exchange account by its ID, for the authenticated
+        user.
+      operationId: delete-account-by-id
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request (invalid ID)
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Delete account by ID
+      tags:
+      - accounts
+    get:
+      description: Returns a specific exchange account by its ID, for the authenticated
+        user.
+      operationId: get-account-by-id
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Account ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.AccountResponse'
+        "400":
+          description: Bad Request (invalid ID)
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get account by ID
+      tags:
+      - accounts
+  /auth/refresh:
+    post:
+      description: Refreshes the access and refresh token pair using an existing refresh
+        token.
+      parameters:
+      - description: Authentication token (Refresh Token)
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tokens successfully refreshed
+          schema:
+            $ref: '#/definitions/auth.TokenPair'
+        "401":
+          description: Invalid or expired refresh token
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Refresh JWT tokens
+      tags:
+      - auth
+  /auth/send-code:
+    post:
+      consumes:
+      - application/json
+      description: Generates and sends a one-time code to the specified email address.
+      parameters:
+      - description: Send Code Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.SendCode'
+      responses:
+        "200":
+          description: Code sent successfully
+        "400":
+          description: Bad Request or invalid email format
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      summary: Send confirmation code
+      tags:
+      - auth
+  /auth/sign-in-email:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user with an email and code, returning JWT access
+        and refresh tokens.
+      parameters:
+      - description: Sign In Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.SignInWithEmail'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successful sign-in. Returns a user object and JWT info
+          schema:
+            $ref: '#/definitions/model.SignInResp'
+        "400":
+          description: Bad Request or invalid email format
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Invalid confirmation code
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "404":
+          description: User with this email not found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      summary: Sign in via email
+      tags:
+      - auth
+  /auth/sign-in-google:
+    post:
+      description: Authenticates an existing user via a Google ID token and returns
+        JWT tokens.
+      parameters:
+      - description: Authentication token (Google ID Token)
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successful sign-in. Returns a user object and JWT info
+          schema:
+            $ref: '#/definitions/model.SignInResp'
+        "400":
+          description: Email is missing from locals
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Google authentication error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      summary: Sign in via Google
+      tags:
+      - auth
+  /auth/sign-in-wallet:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user by verifying a signed message from their Solana
+        wallet. If the user does not exist, a new one is created.
+      operationId: sign-in-with-wallet
+      parameters:
+      - description: Public key and signed message(public key) for verification
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.SolanaVerifyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successful sign-in or registration. Returns user data and JWT
+            tokens
+          schema:
+            $ref: '#/definitions/model.SignInResp'
+        "400":
+          description: Bad Request (e.g., missing public key or signature)
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized (invalid wallet signature)
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      summary: Sign in or register with Solana wallet
+      tags:
+      - auth
+  /auth/sign-up-email:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new user by verifying an email and confirmation code.
+      parameters:
+      - description: Sign Up Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.SignUpWithEmail'
+      responses:
+        "200":
+          description: User successfully created
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Invalid confirmation code
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error (e.g., user already exists)
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      summary: Sign up via email
+      tags:
+      - auth
+  /auth/sign-up-google:
+    post:
+      description: Creates a new user based on a Google ID token.
+      parameters:
+      - description: Authentication token (Google ID Token)
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      responses:
+        "200":
+          description: User successfully created
+        "401":
+          description: Email not found in locals or invalid token
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error (e.g., user already exists)
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      summary: Sign up via Google
+      tags:
+      - auth
+  /campaigns:
+    get:
+      description: Returns all campaigns associated with the authenticated user.
+      operationId: get-campaigns
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.SwapCampaign'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: List campaigns
+      tags:
+      - campaigns
+  /campaigns/{id}:
+    delete:
+      description: Stops an active campaign by its UUID.
+      operationId: stop-campaign
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Campaign UUID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request (invalid UUID)
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Stop campaign
+      tags:
+      - campaigns
+    get:
+      description: Returns a specific campaign by its UUID for the authenticated user.
+      operationId: get-campaign-by-id
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Campaign UUID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.SwapCampaign'
+        "400":
+          description: Bad Request (invalid UUID)
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get campaign by ID
+      tags:
+      - campaigns
+    put:
+      consumes:
+      - application/json
+      description: Updates configuration for a specific campaign.
+      operationId: update-campaign
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Campaign UUID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.CampaignRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Update campaign
+      tags:
+      - campaigns
+  /campaigns/{id}/transactions:
+    get:
+      description: Returns a list of transactions associated with a specific campaign.
+      operationId: get-campaign-transactions
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Campaign UUID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.SwapTransaction'
+            type: array
+        "400":
+          description: Bad Request (invalid UUID)
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get campaign transactions
+      tags:
+      - campaigns
+  /campaigns/summary:
+    get:
+      description: Returns a statistical summary of all campaigns for the authenticated
+        user (e.g., total spent, active count).
+      operationId: get-campaigns-summary
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Campaigns summary data
+          schema:
+            items:
+              $ref: '#/definitions/model.CampaignSummary'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get campaigns summary
+      tags:
+      - campaigns
+  /exchanges:
+    get:
+      description: Returns all exchanges
+      operationId: get-exchanges
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Exchange'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: List exchanges
+      tags:
+      - exchanges
+  /jito/tip-floor:
+    get:
+      description: Returns the current tip floor information from Jito.
+      operationId: get-jito-tip-floor
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tip floor data
+          schema:
+            $ref: '#/definitions/model.TipFloorSOL'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get Jito tip floor
+      tags:
+      - jito
+  /projects:
+    get:
+      description: Returns all projects
+      operationId: get-projects
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.ProjectWithWalletsResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: List projects
+      tags:
+      - projects
+    post:
+      consumes:
+      - application/json
+      description: Creates a new project
+      operationId: create-project
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Create Project Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateProjectReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.Project'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Create project
+      tags:
+      - projects
+  /projects/{id}:
+    delete:
+      description: Deletes a project by its ID
+      operationId: delete-project
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Delete project
+      tags:
+      - projects
+    get:
+      description: Returns a project by its ID
+      operationId: get-project-by-id
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.ProjectWithWalletsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get project by ID
+      tags:
+      - projects
+  /pumpfun/estimate:
+    post:
+      consumes:
+      - application/json
+      description: Estimates the cost and impact of a Pumpfun pull operation.
+      operationId: pumpfun-estimate-pull
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Estimate parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.EstimatePullRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Estimation Result
+          schema:
+            $ref: '#/definitions/model.TargetPullEstimateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Estimate Pumpfun Pull
+      tags:
+      - pumpfun
+  /pumpfun/pull-down:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new target pull-down campaign on Pumpfun to decrease
+        token price.
+      operationId: pumpfun-target-pull-down
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Pull Down parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.TargetPullDownRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.TargetPullResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Create Pull Down campaign (Pumpfun)
+      tags:
+      - pumpfun
+  /pumpfun/pull-up:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new target pull-up campaign on Pumpfun to increase token
+        price.
+      operationId: pumpfun-target-pull-up
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Pull Up parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.TargetPullUpRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.TargetPullResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Create Pull Up campaign (Pumpfun)
+      tags:
+      - pumpfun
+  /raydium/estimate:
+    post:
+      consumes:
+      - application/json
+      description: Estimates the cost and impact of a Raydium pull operation.
+      operationId: raydium-estimate-pull
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Estimate parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.EstimatePullRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Estimation Result
+          schema:
+            $ref: '#/definitions/model.TargetPullEstimateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Estimate Raydium Pull
+      tags:
+      - raydium
+  /raydium/pull-down:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new target pull-down campaign on Raydium to decrease
+        token price.
+      operationId: raydium-target-pull-down
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Pull Down parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.TargetPullDownRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.TargetPullResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Create Pull Down campaign (Raydium)
+      tags:
+      - raydium
+  /raydium/pull-up:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new target pull-up campaign on Raydium to increase token
+        price.
+      operationId: raydium-target-pull-up
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Pull Up parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.TargetPullUpRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.TargetPullResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Create Pull Up campaign (Raydium)
+      tags:
+      - raydium
+  /user:
+    get:
+      description: Returns the profile data for the user authenticated via a JWT access
+        token.
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User data
+          schema:
+            $ref: '#/definitions/model.User'
+        "401":
+          description: Authentication error, claims not found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get current user info
+      tags:
+      - user
+  /user/email:
+    patch:
+      consumes:
+      - application/json
+      description: Updates the email address of the authenticated user. Requires a
+        valid confirmation code sent to the new email.
+      operationId: update-user-email
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: New email and verification code
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.ChangeEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Invalid request data or email format
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized or invalid verification code
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Update user email
+      tags:
+      - user
+  /user/history:
+    get:
+      description: Returns a list of actions (history) for the authenticated user.
+      operationId: get-user-history
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User action history
+          schema:
+            items:
+              $ref: '#/definitions/model.UserHistory'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get user action history
+      tags:
+      - user
+  /wallets/solana/{id}:
+    get:
+      description: Fetches the private key for a given wallet ID.
+      operationId: fetch-private-key-by-id
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Wallet ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.PrivateKey'
+        "400":
+          description: Bad Request (invalid public key)
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get private key by wallet ID
+      tags:
+      - wallets
+  /wallets/solana/deposit:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new Solana deposit request
+      operationId: deposit-solana
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Deposit request payload
+        in: body
+        name: deposit
+        required: true
+        schema:
+          $ref: '#/definitions/model.DepositSolanaReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.DepositResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Create Solana deposit
+      tags:
+      - deposits
+  /wallets/solana/deposit/{id}:
+    post:
+      description: Returns the current status of a deposit by its ID
+      operationId: get-deposit-status
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Deposit ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Deposit'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get deposit status
+      tags:
+      - deposits
+  /wallets/solana/deposit/history:
+    get:
+      description: Returns the deposit history for the authenticated user.
+      operationId: get-deposit-history
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.DepositHistoryResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get deposit history
+      tags:
+      - deposits
+  /wallets/solana/deposit/history/{id}:
+    get:
+      description: Returns the deposit history for a specific project ID, owned by
+        the authenticated user.
+      operationId: get-deposit-history-by-project-id
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.DepositHistoryResponse'
+        "400":
+          description: Bad Request (invalid ID)
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get deposit history by project ID
+      tags:
+      - deposits
+  /wallets/solana/deposit/process/{id}:
+    post:
+      description: Processes a previously created deposit order by its ID.
+      operationId: process-deposit-order
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Deposit Order ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/model.DepositProcessResponse'
+        "400":
+          description: Bad Request (invalid ID)
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Process a deposit order
+      tags:
+      - deposits
+  /wallets/solana/generate:
+    post:
+      consumes:
+      - application/json
+      description: Generates a specified number of new Solana wallets and associates
+        them with project IDs.
+      operationId: generate-solana-wallets
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Generation parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.GenerateWalletsReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            items:
+              $ref: '#/definitions/model.Wallet'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Generate Solana wallets
+      tags:
+      - wallets
+  /wallets/solana/import:
+    post:
+      consumes:
+      - application/json
+      description: Imports existing Solana wallets using a list of private keys.
+      operationId: import-solana-wallets
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Import parameters with private keys
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.ImportWalletsReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            items:
+              $ref: '#/definitions/model.Wallet'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Import Solana wallets
+      tags:
+      - wallets
+  /wallets/solana/import-file:
+    post:
+      description: Imports Solana wallets from a text file (.txt) containing private
+        keys (one key per line).
+      operationId: import-solana-wallets-from-file
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Text file with private keys (one per line)
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: JSON array of project IDs to associate wallets with.
+        in: formData
+        name: project_ids
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            items:
+              $ref: '#/definitions/model.Wallet'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Import Solana wallets from file
+      tags:
+      - wallets
+  /wallets/solana/monitor:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Starts monitoring of provided Solana wallets or updates monitoring settings.
+        This endpoint allows adding wallets to the monitoring service to track their activity.
+      operationId: monitor-solana-wallets
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Monitoring parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.MonitorWalletsReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.MonitorWalletsResp'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Monitor Solana wallets
+      tags:
+      - wallets
+securityDefinitions:
+  BearerAuth:
+    description: Type 'Bearer' followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

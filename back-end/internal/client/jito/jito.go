@@ -219,15 +219,14 @@ func (c *Client) BroadcastBundle(
 		return err
 	}
 
-	// bundleID, err := c.SendBundle(ctx, bundle)
-	// if err != nil {
-	// 	cancel()
-	// 	c.logger.Error("failed to send bundle", zap.Error(err))
-	// 	return apperrors.Internal("jito send bundle failed: %w", err)
-	// }
+	bundleID, err := c.SendBundle(ctx, bundle)
+	if err != nil {
+		cancel()
+		c.logger.Error("failed to send bundle", zap.Error(err))
+		return apperrors.Internal("jito send bundle failed: %w", err)
+	}
 
-	bundleID := "mock"
-	c.logger.Info("bundle sent", zap.String("bundle_id", bundleID))
+	c.logger.Info("bundle sent", zap.String("bundle_id", bundleID.BundleId))
 	c.logger.Info("tip transaction", zap.String("tip_tx", tipTx.String()))
 
 	if err = eg.Wait(); err != nil {

@@ -41,7 +41,6 @@ func NewProjectHandler(service *service.ProjectService, validate *validator.Vali
 //	@Router			/projects [get]
 //	@Security		BearerAuth
 func (h *ProjectHandler) GetProjects(c fiber.Ctx) error {
-
 	claims, ok := c.Locals("claims").(auth.TokenClaims)
 	if !ok {
 		return apperrors.Unauthorized("claims not found")

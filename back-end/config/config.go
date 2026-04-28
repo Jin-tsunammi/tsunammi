@@ -85,9 +85,12 @@ type JitoConfig struct {
 
 type AppConfig struct {
 	Environment string `env:"ENVIRONMENT,required"`
+	LogLevel    string `env:"LOG_LEVEL" envDefault:"info"`
 
 	SolanaRPCURL string `env:"SOLANA_RPC_URL,required"`
 	SolanaWSURL  string `env:"SOLANA_WS_URL,required"`
+
+	ComputeUnitLimit uint32 `env:"COMPUTE_UNIT_LIMIT" envDefault:"200000"`
 
 	KucoinBaseUrl string `env:"KUCOIN_BASE_URL" envDefault:"https://api.kucoin.com/"`
 
@@ -103,4 +106,6 @@ type AppConfig struct {
 	RaydiumRPCURL string `env:"RAYDIUM_RPC_URL,required" envDefault:"https://api-v3.raydium.io"`
 
 	SolscanApiKey string `env:"SOLSCAN_API_KEY,required"`
+
+	PriceMonitorInterval time.Duration `env:"PRICE_MONITOR_INTERVAL" envDefault:"10s"`
 }

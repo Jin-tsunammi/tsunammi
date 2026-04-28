@@ -11,12 +11,14 @@ import (
 )
 
 const (
-	StatusInUse        = "in_use"
-	StatusDone         = "done"
-	StatusStop         = "stop"
-	StatusError        = "error"
-	TargetUpTaskType   = "up"
-	TargetDownTaskType = "down"
+	StatusInUse             = "in_use"
+	StatusDone              = "done"
+	StatusBudgetDone        = "budget_done"
+	StatusInsufficientFunds = "insufficient_funds"
+	StatusStop              = "stop"
+	StatusError             = "error"
+	TargetUpTaskType        = "up"
+	TargetDownTaskType      = "down"
 )
 
 type TransactionSpeed string
@@ -25,6 +27,15 @@ const (
 	Default TransactionSpeed = "default"
 	Fast    TransactionSpeed = "fast"
 	Extra   TransactionSpeed = "extra"
+)
+
+type PriorityFee string
+
+const (
+	PriorityFeeMin    PriorityFee = "Min"
+	PriorityFeeLow    PriorityFee = "Low"
+	PriorityFeeMedium PriorityFee = "Medium"
+	PriorityFeeHigh   PriorityFee = "High"
 )
 
 type SwapProviderID uint8
@@ -63,6 +74,7 @@ type SwapCampaign struct {
 	UpdatedAt                  time.Time        `bun:"updated_at" json:"updated_at"`
 	TransactionSpeed           TransactionSpeed `bun:"transaction_speed" json:"transaction_speed"`
 	UsingJito                  bool             `bun:"using_jito" json:"using_jito"`
+	PriorityFee                float64          `bun:"priority_fee" json:"priority_fee"`
 }
 
 type CampaignsWithPaginationResponse struct {
@@ -104,6 +116,7 @@ type TargetPullUpRequest struct {
 	MaxTimeBetweenTransactions time.Duration    `json:"max_time_between_transactions" swaggertype:"integer"`
 	TransactionSpeed           TransactionSpeed `json:"transaction_speed"`
 	UsingJito                  bool             `json:"using_jito"`
+	PriorityFee                float64          `json:"priority_fee" validate:"gte=0"`
 
 	ProviderID SwapProviderID `json:"-" swaggerignore:"true"`
 }
@@ -122,6 +135,7 @@ type TargetPullDownRequest struct {
 	MaxTimeBetweenTransactions time.Duration    `json:"max_time_between_transactions" swaggertype:"integer"`
 	TransactionSpeed           TransactionSpeed `json:"transaction_speed"`
 	UsingJito                  bool             `json:"using_jito"`
+	PriorityFee                float64          `json:"priority_fee" validate:"gte=0"`
 
 	ProviderID SwapProviderID `json:"-" swaggerignore:"true"`
 }
@@ -184,6 +198,7 @@ type AsyncSwapTask struct {
 	TransactionSpeed      TransactionSpeed
 	ATAKeyCreated         bool
 	UsingJito             bool
+	PriorityFeeMLP        uint64 // microlamports/cu
 }
 
 type PoolParams struct {
@@ -199,10 +214,16 @@ type TargetPullResponse struct {
 	CampaignID uuid.UUID `json:"campaign_id"`
 }
 
+type PriorityFees struct {
+	Low    float64 `json:"low"`
+	Medium float64 `json:"medium"`
+	High   float64 `json:"high"`
+}
 type TargetPullEstimateResponse struct {
-	BudgetSOL float64 `json:"budget_sol"`
-	TipSOL    float64 `json:"tip_sol"`
-	RentSOl   float64 `json:"rent_sol"`
+	BudgetSOL    float64      `json:"budget_sol"`
+	TipSOL       float64      `json:"tip_sol"`
+	RentSOl      float64      `json:"rent_sol"`
+	PriorityFees PriorityFees `json:"priority_fees"`
 }
 
 type CampaignSummaryWithPagination struct {

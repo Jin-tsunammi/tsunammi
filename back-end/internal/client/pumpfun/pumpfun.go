@@ -8,10 +8,9 @@ import (
 	"mm/config"
 	pump_amm "mm/internal/client/pumpfun/amm"
 	pump_bonding "mm/internal/client/pumpfun/bonding"
-
-	poolmath "mm/internal/client/raydium/math"
 	"mm/internal/client/solanarpc"
 	"mm/internal/model"
+	"mm/internal/pricing"
 	"mm/pkg/apperrors"
 	"mm/pkg/solutil"
 	"net/url"
@@ -19,7 +18,6 @@ import (
 	bin "github.com/gagliardetto/binary"
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/programs/token"
-	"github.com/gagliardetto/solana-go/rpc"
 	"resty.dev/v3"
 )
 
@@ -231,7 +229,7 @@ func (c *Client) PreparePool(ctx context.Context, srcMint, destMint solana.Publi
 		return nil, nil, apperrors.BadRequest("cannot fetch pool account", err)
 	}
 
-	price, err := calculatePoolPrice(ctx, c.rpc, poolAccount.Value, poolID, srcMint, destMint)
+	price, err := pricing.CalculatePoolPrice(ctx, c.rpc, poolAccount.Value, poolID, srcMint, destMint)
 	if err != nil {
 		return nil, nil, apperrors.BadRequest("cannot fetch price", err)
 	}
@@ -287,57 +285,4 @@ func (c *Client) FetchPoolParams(ctx context.Context, poolID solana.PublicKey) (
 		}
 	}
 	return &poolParams, nil
-}
-
-func calculatePoolPrice(ctx context.Context, solRPC solanarpc.SolanaRPC, poolAccount *rpc.Account, poolID, inputTokenMint, outputTokenMint solana.PublicKey) (*big.Rat, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-
-	if poolAccount == nil || poolAccount.Data == nil {
-		return nil, errors.New("pool account is nil")
-	}
-
-	switch poolAccount.Owner {
-	case pump_amm.ProgramID:
-		pool, err := pump_amm.ParseAccount_Pool(poolAccount.Data.GetBinary())
-		if err != nil {
-			return nil, err
-		}
-
-		poolParams := &model.PoolParams{
-			PoolID:           poolID,
-			InputTokenVault:  pool.PoolBaseTokenAccount,
-			OutputTokenVault: pool.PoolQuoteTokenAccount,
-		}
-
-		poolState, err := pump_amm.FetchAMMPoolState(ctx, solRPC, poolParams, inputTokenMint, outputTokenMint)
-		if err != nil {
-			return nil, err
-		}
-
-		if poolState.PoolState.BaseMint.Equals(inputTokenMint) && poolState.PoolState.QuoteMint.Equals(outputTokenMint) {
-			return poolmath.ConstantProductCalculatePrice(poolState.ReserveA, poolState.ReserveB, uint64(poolState.BaseMintDecimals), uint64(poolState.QuoteMintDecimals)), nil
-		}
-
-		return poolmath.ConstantProductCalculatePrice(poolState.ReserveA, poolState.ReserveB, uint64(poolState.QuoteMintDecimals), uint64(poolState.BaseMintDecimals)), nil
-	case pump_bonding.ProgramID:
-		poolParams := &model.PoolParams{
-			PoolID: poolID,
-		}
-
-		poolState, err := pump_bonding.FetchBondingCurveState(ctx, solRPC, poolParams, inputTokenMint, outputTokenMint)
-		if err != nil {
-			return nil, err
-		}
-
-		return poolmath.ConstantProductCalculatePrice(
-			poolState.ReserveA,
-			poolState.ReserveB,
-			uint64(poolState.BaseMintDecimals),
-			uint64(poolState.QuoteMintDecimals),
-		), nil
-	default:
-		return nil, errors.New("unknown pool program id")
-	}
 }

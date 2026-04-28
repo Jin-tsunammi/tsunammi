@@ -19,6 +19,7 @@ func Module() fx.Option {
 			NewCampaignHandler,
 			NewUtilHandler,
 			NewSwaggerHandler,
+			NewBuybackHandler,
 		),
 		fx.Invoke(func(app *fiber.App, accountHandler *AccountHandler, auth *AuthHandler) {
 			accountHandler.RegisterRoutes(app, auth)
@@ -49,6 +50,9 @@ func Module() fx.Option {
 		}),
 		fx.Invoke(func(app *fiber.App, utilHandler *UtilHandler) {
 			utilHandler.RegisterRoutes(app)
+		}),
+		fx.Invoke(func(app *fiber.App, buybackHandler *BuybackHandler, auth *AuthHandler) {
+			buybackHandler.RegisterRoutes(app, auth)
 		}),
 		fx.Invoke(func(app *fiber.App, swaggerHandler *SwaggerHandler) {
 			swaggerHandler.RegisterRoutes(app)

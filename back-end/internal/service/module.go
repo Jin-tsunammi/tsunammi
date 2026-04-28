@@ -1,10 +1,15 @@
 package service
 
-import "go.uber.org/fx"
+import (
+	"mm/internal/dex"
+
+	"go.uber.org/fx"
+)
 
 func Module() fx.Option {
 	return fx.Module("service",
 		fx.Provide(
+			dex.NewDexProviders,
 			NewExchangeService,
 			NewProjectService,
 			NewWalletService,
@@ -15,6 +20,7 @@ func Module() fx.Option {
 			NewJWTService,
 			NewSwapService,
 			NewCampaignService,
+			NewSmartBuybackService,
 		),
 	)
 }

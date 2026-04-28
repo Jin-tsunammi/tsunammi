@@ -119,7 +119,7 @@ func (j *jitoScheduleStorage) update(ctx context.Context, ttl time.Duration) err
 	}
 
 	j.cache.Set("schedule", schedule, ttl)
-	j.cache.Set("schedule_backup", slot, ttl*6/5)
+	j.cache.Set("schedule_backup", schedule, ttl*6/5)
 
 	return nil
 }

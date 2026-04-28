@@ -77,3 +77,18 @@ func (r *BigRat) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
+
+func (r *BigRat) ToAtomicUnits(decimals uint8) *big.Int {
+	if r == nil {
+		return new(big.Int)
+	}
+
+	multiplier := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(decimals)), nil)
+
+	scaled := new(big.Rat).Mul(
+		new(big.Rat).Set(&r.Rat),
+		new(big.Rat).SetInt(multiplier),
+	)
+
+	return new(big.Int).Quo(scaled.Num(), scaled.Denom())
+}

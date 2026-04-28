@@ -23,6 +23,11 @@ type Params struct {
 	TransactionHash string
 }
 
+type Result struct {
+	Params Params
+	Err    error
+}
+
 func Resolve(err error) (string, string, *string) {
 	status := "Failed"
 	message := "Network Error"
@@ -68,12 +73,12 @@ func LogSwapTransaction(
 	ctx context.Context,
 	err error,
 	campaignID uuid.UUID,
+	targetID *uuid.UUID,
 	params Params,
 	transactionRepository *repository.SwapTransactionRepository,
 	logger *zap.Logger,
 ) error {
 	status, message, debugMessage := Resolve(err)
-
 	swapTx := &model.SwapTransaction{
 		CampaignID:      campaignID,
 		TransactionHash: params.TransactionHash,
@@ -88,13 +93,41 @@ func LogSwapTransaction(
 		CreatedAt:       time.Now(),
 	}
 
-	logger.Error("Error in log func", zap.Error(err))
-	logger.Error("Swap transaction", zap.Any("swap_tx", swapTx))
-	logger.Error("Status", zap.String("status", status))
-	logger.Error("Message", zap.String("message", message))
-
 	if dbErr := transactionRepository.Create(ctx, swapTx); dbErr != nil {
 		logger.Error("Failed to save swap transaction", zap.Error(dbErr))
+	}
+
+	return nil
+}
+
+func LogBuybackTransaction(
+	ctx context.Context,
+	err error,
+	campaignID uuid.UUID,
+	targetID *uuid.UUID,
+	params Params,
+	buybackTransactionRepository *repository.BuybackTransactionRepository,
+	logger *zap.Logger,
+) error {
+	status, message, debugMessage := Resolve(err)
+
+	buybackTx := &model.BuybackTransaction{
+		CampaignID:      campaignID,
+		TargetID:        *targetID,
+		TransactionHash: params.TransactionHash,
+		PoolID:          params.PoolID,
+		TokenMintFrom:   params.TokenMintFrom,
+		TokenMintTo:     params.TokenMintTo,
+		AddressFrom:     params.AddressFrom,
+		AddressTo:       params.AddressTo,
+		Status:          status,
+		Message:         message,
+		DebugMessage:    debugMessage,
+		CreatedAt:       time.Now(),
+	}
+
+	if dbErr := buybackTransactionRepository.Create(ctx, buybackTx); dbErr != nil {
+		logger.Error("Failed to save buyback transaction", zap.Error(dbErr))
 	}
 
 	return nil

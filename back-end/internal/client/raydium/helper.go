@@ -1,7 +1,6 @@
 package raydium
 
 import (
-	"crypto/rand"
 	"errors"
 	"fmt"
 	"math/big"
@@ -20,24 +19,6 @@ func SafeUint64(v *big.Int) (uint64, error) {
 		return 0, apperrors.Internal("negative value for uint64")
 	}
 	return v.Uint64(), nil
-}
-
-func RandBigIntRange(min, max *big.Int) (*big.Int, error) {
-
-	delta := new(big.Int).Sub(max, min)
-
-	delta.Add(delta, big.NewInt(1))
-
-	if delta.Sign() <= 0 {
-		return nil, apperrors.Internal("max must be greater than min")
-	}
-
-	randomOffset, err := rand.Int(rand.Reader, delta)
-	if err != nil {
-		return nil, apperrors.Internal("failed to generate random offset", err)
-	}
-
-	return new(big.Int).Add(randomOffset, min), nil
 }
 
 func IsTargetReached(current, goal *big.Rat, taskType string) bool {

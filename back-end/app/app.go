@@ -2,6 +2,7 @@ package app
 
 import (
 	"mm/config"
+	"mm/internal/client/helius"
 	"mm/internal/client/jito"
 	"mm/internal/client/kucoinapi"
 	"mm/internal/client/pumpfun"
@@ -29,6 +30,7 @@ import (
 	"time"
 
 	"go.uber.org/fx"
+	"resty.dev/v3"
 )
 
 func Build() *fx.App {
@@ -42,6 +44,7 @@ func Build() *fx.App {
 			validator.Module,
 			mailer.Module,
 			pool.Module,
+			fx.Provide(resty.New),
 			jito.Module,
 		),
 
@@ -61,6 +64,7 @@ func Build() *fx.App {
 		kucoinapi.Module(),
 		solanarpc.Module(),
 		solanaws.Module(),
+		helius.Module(),
 
 		pumpfun.Module(),
 		pumpAMM.Module(),

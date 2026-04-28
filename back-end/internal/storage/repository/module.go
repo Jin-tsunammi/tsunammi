@@ -83,6 +83,14 @@ func Module() fx.Option {
 			repository.NewGenericRepository[model.SwapCampaign, uint64],
 			NewSwapCampaignRepository,
 		),
+		fx.Provide(
+			repository.NewGenericRepository[model.SmartBuybackCampaign, uuid.UUID],
+			NewBuybackRepository,
+		),
+		fx.Provide(
+			repository.NewGenericRepository[model.BuybackTransaction, uint64],
+			NewBuybackTransactionRepository,
+		),
 
 		fx.Invoke(
 			func(lc fx.Lifecycle, db *bun.DB) {

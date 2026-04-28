@@ -1,30 +1,17 @@
 package worker
 
 import (
-	"context"
-	"mm/config"
+	"mm/internal/worker/buyback"
+	buybackpricetracker "mm/internal/worker/buyback_price_tracker"
+	"mm/internal/worker/swaptarget"
 
 	"go.uber.org/fx"
 )
 
 func Module() fx.Option {
 	return fx.Module("worker",
-		fx.Provide(
-			NewSwapTargetManager,
-		),
-		fx.Invoke(
-			func(lc fx.Lifecycle, manager *SwapTargetManager, cfg *config.Config) {
-				lc.Append(fx.Hook{
-					OnStart: func(ctx context.Context) error {
-						go manager.controlThread(cfg)
-						return nil
-					},
-					OnStop: func(ctx context.Context) error {
-						manager.close()
-						return nil
-					},
-				})
-			},
-		),
+		swaptarget.Module(),
+		buybackpricetracker.Module(),
+		buyback.Module(),
 	)
 }

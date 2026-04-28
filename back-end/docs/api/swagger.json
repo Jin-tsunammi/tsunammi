@@ -573,6 +573,318 @@
                 }
             }
         },
+        "/buyback": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns all buyback campaigns for the authenticated user.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "buyback"
+                ],
+                "summary": "List buyback campaigns",
+                "operationId": "get-buyback-campaigns",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authentication token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.SmartBuybackCampaign"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a new smart buyback campaign with one or more targets.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "buyback"
+                ],
+                "summary": "Create buyback campaign",
+                "operationId": "create-buyback-campaign",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authentication token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Campaign parameters",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.CreateSmartBuybackCampaignRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.SmartBuybackCampaignWithTargets"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    }
+                }
+            }
+        },
+        "/buyback/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a buyback campaign with its targets by UUID.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "buyback"
+                ],
+                "summary": "Get buyback campaign by ID",
+                "operationId": "get-buyback-campaign-by-id",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authentication token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Campaign UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.SmartBuybackCampaignWithTargets"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request (invalid UUID)",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Stops an active buyback campaign by its UUID.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "buyback"
+                ],
+                "summary": "Stop buyback campaign",
+                "operationId": "stop-buyback-campaign",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authentication token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Campaign UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    }
+                }
+            }
+        },
+        "/buyback/{id}/transactions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a paginated list of transactions for a buyback campaign. Optionally filtered by target ID.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "buyback"
+                ],
+                "summary": "Get buyback transactions",
+                "operationId": "get-buyback-transactions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authentication token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Campaign UUID",
+                        "name": "id",
+                        "in": "path"
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Target UUID filter",
+                        "name": "target_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/model.BuybackTransaction"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    }
+                }
+            }
+        },
         "/campaigns": {
             "get": {
                 "security": [
@@ -2636,6 +2948,56 @@
                 }
             }
         },
+        "model.BuybackTransaction": {
+            "type": "object",
+            "properties": {
+                "address_from": {
+                    "type": "string"
+                },
+                "address_to": {
+                    "type": "string"
+                },
+                "amount_token_from": {
+                    "type": "string"
+                },
+                "amount_token_to": {
+                    "type": "string"
+                },
+                "campaign_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "debug_message": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "pool_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "target_id": {
+                    "type": "string"
+                },
+                "token_mint_from": {
+                    "type": "string"
+                },
+                "token_mint_to": {
+                    "type": "string"
+                },
+                "transaction_hash": {
+                    "type": "string"
+                }
+            }
+        },
         "model.CampaignRequest": {
             "type": "object",
             "properties": {
@@ -2738,6 +3100,89 @@
             "properties": {
                 "name": {
                     "type": "string"
+                }
+            }
+        },
+        "model.CreateSmartBuybackCampaignRequest": {
+            "type": "object",
+            "required": [
+                "project_id",
+                "provider_id",
+                "targets",
+                "token_mint"
+            ],
+            "properties": {
+                "project_id": {
+                    "type": "integer"
+                },
+                "provider_id": {
+                    "$ref": "#/definitions/model.SwapProviderID"
+                },
+                "targets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.CreateSmartBuybackTargetRequest"
+                    }
+                },
+                "token_mint": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.CreateSmartBuybackTargetRequest": {
+            "type": "object",
+            "required": [
+                "budget",
+                "max_time_between_transactions",
+                "max_transaction_amount",
+                "min_time_between_transactions",
+                "min_transaction_amount",
+                "parallel_transactions_amount",
+                "priority_fee",
+                "slippage",
+                "start_at",
+                "target_price",
+                "type"
+            ],
+            "properties": {
+                "budget": {
+                    "type": "string"
+                },
+                "max_time_between_transactions": {
+                    "type": "integer"
+                },
+                "max_transaction_amount": {
+                    "type": "string"
+                },
+                "min_time_between_transactions": {
+                    "type": "integer"
+                },
+                "min_transaction_amount": {
+                    "type": "string"
+                },
+                "parallel_transactions_amount": {
+                    "type": "integer"
+                },
+                "priority_fee": {
+                    "type": "string"
+                },
+                "slippage": {
+                    "type": "integer"
+                },
+                "start_at": {
+                    "type": "integer"
+                },
+                "target_price": {
+                    "type": "string"
+                },
+                "transaction_speed": {
+                    "$ref": "#/definitions/model.TransactionSpeed"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "using_jito": {
+                    "type": "boolean"
                 }
             }
         },
@@ -3005,6 +3450,20 @@
                 }
             }
         },
+        "model.PriorityFees": {
+            "type": "object",
+            "properties": {
+                "high": {
+                    "type": "number"
+                },
+                "low": {
+                    "type": "number"
+                },
+                "medium": {
+                    "type": "number"
+                }
+            }
+        },
         "model.PrivateKey": {
             "type": "object",
             "required": [
@@ -3145,6 +3604,144 @@
                 }
             }
         },
+        "model.SmartBuybackCampaign": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "pool_id": {
+                    "type": "string"
+                },
+                "pool_program_id": {
+                    "type": "string"
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "provider_id": {
+                    "$ref": "#/definitions/model.SwapProviderID"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "token_mint": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "model.SmartBuybackCampaignTarget": {
+            "type": "object",
+            "properties": {
+                "budget": {
+                    "type": "string"
+                },
+                "campaign_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "max_time_between_transactions": {
+                    "type": "integer"
+                },
+                "max_transactions_budget": {
+                    "type": "string"
+                },
+                "min_time_between_transactions": {
+                    "type": "integer"
+                },
+                "min_transactions_budget": {
+                    "type": "string"
+                },
+                "parallel_transactions_amount": {
+                    "type": "integer"
+                },
+                "priority_fee": {
+                    "type": "string"
+                },
+                "remaining_budget": {
+                    "type": "string"
+                },
+                "slippage": {
+                    "type": "integer"
+                },
+                "start_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "target_price": {
+                    "type": "string"
+                },
+                "transaction_speed": {
+                    "$ref": "#/definitions/model.TransactionSpeed"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "using_jito": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "model.SmartBuybackCampaignWithTargets": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "pool_id": {
+                    "type": "string"
+                },
+                "pool_program_id": {
+                    "type": "string"
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "provider_id": {
+                    "$ref": "#/definitions/model.SwapProviderID"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "targets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.SmartBuybackCampaignTarget"
+                    }
+                },
+                "token_mint": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
         "model.SolanaVerifyRequest": {
             "type": "object",
             "required": [
@@ -3222,7 +3819,13 @@
                 "pool_id": {
                     "type": "string"
                 },
+                "priority_fee": {
+                    "type": "number"
+                },
                 "project_id": {
+                    "type": "integer"
+                },
+                "provider_id": {
                     "type": "integer"
                 },
                 "slippage_bps": {
@@ -3254,6 +3857,18 @@
                 }
             }
         },
+        "model.SwapProviderID": {
+            "type": "integer",
+            "format": "int32",
+            "enum": [
+                1,
+                2
+            ],
+            "x-enum-varnames": [
+                "SwapProviderRaydium",
+                "SwapProviderPumpfun"
+            ]
+        },
         "model.SwapTransaction": {
             "type": "object",
             "properties": {
@@ -3273,6 +3888,9 @@
                     "type": "string"
                 },
                 "created_at": {
+                    "type": "string"
+                },
+                "debug_message": {
                     "type": "string"
                 },
                 "id": {
@@ -3325,6 +3943,10 @@
                 "parallel_transactions_amount": {
                     "type": "integer"
                 },
+                "priority_fee": {
+                    "type": "number",
+                    "minimum": 0
+                },
                 "project_id": {
                     "type": "integer"
                 },
@@ -3347,6 +3969,9 @@
             "properties": {
                 "budget_sol": {
                     "type": "number"
+                },
+                "priority_fees": {
+                    "$ref": "#/definitions/model.PriorityFees"
                 },
                 "rent_sol": {
                     "type": "number"
@@ -3393,6 +4018,10 @@
                 },
                 "parallel_transactions_amount": {
                     "type": "integer"
+                },
+                "priority_fee": {
+                    "type": "number",
+                    "minimum": 0
                 },
                 "project_id": {
                     "type": "integer"

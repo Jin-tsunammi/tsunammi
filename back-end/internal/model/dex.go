@@ -1,6 +1,25 @@
 package model
 
-import "github.com/gagliardetto/solana-go"
+import (
+	"context"
+	"math/big"
+
+	"github.com/gagliardetto/solana-go"
+)
+
+type DexPreparedPool struct {
+	PoolID              solana.PublicKey
+	PoolProgramID       solana.PublicKey
+	SourceTokenDecimals uint8
+	DestTokenDecimals   uint8
+}
+
+type DexProvider interface {
+	ID() SwapProviderID
+	FindPoolByMints(ctx context.Context, mintA, mintB solana.PublicKey) (*PoolResponse, error)
+	PreparePool(ctx context.Context, srcMint, destMint solana.PublicKey) (*DexPreparedPool, *big.Rat, error)
+	FetchPoolParams(ctx context.Context, poolID solana.PublicKey) (*PoolParams, error)
+}
 
 type PoolResponse struct {
 	ProgramID string   `json:"programId"`

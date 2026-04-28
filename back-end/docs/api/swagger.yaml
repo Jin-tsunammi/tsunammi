@@ -109,6 +109,39 @@ definitions:
     - passphrase
     - secret_key
     type: object
+  model.BuybackTransaction:
+    properties:
+      address_from:
+        type: string
+      address_to:
+        type: string
+      amount_token_from:
+        type: string
+      amount_token_to:
+        type: string
+      campaign_id:
+        type: string
+      created_at:
+        type: string
+      debug_message:
+        type: string
+      id:
+        type: integer
+      message:
+        type: string
+      pool_id:
+        type: string
+      status:
+        type: string
+      target_id:
+        type: string
+      token_mint_from:
+        type: string
+      token_mint_to:
+        type: string
+      transaction_hash:
+        type: string
+    type: object
   model.CampaignRequest:
     properties:
       budget:
@@ -177,6 +210,65 @@ definitions:
         type: string
     required:
     - name
+    type: object
+  model.CreateSmartBuybackCampaignRequest:
+    properties:
+      project_id:
+        type: integer
+      provider_id:
+        $ref: '#/definitions/model.SwapProviderID'
+      targets:
+        items:
+          $ref: '#/definitions/model.CreateSmartBuybackTargetRequest'
+        type: array
+      token_mint:
+        type: string
+    required:
+    - project_id
+    - provider_id
+    - targets
+    - token_mint
+    type: object
+  model.CreateSmartBuybackTargetRequest:
+    properties:
+      budget:
+        type: string
+      max_time_between_transactions:
+        type: integer
+      max_transaction_amount:
+        type: string
+      min_time_between_transactions:
+        type: integer
+      min_transaction_amount:
+        type: string
+      parallel_transactions_amount:
+        type: integer
+      priority_fee:
+        type: string
+      slippage:
+        type: integer
+      start_at:
+        type: integer
+      target_price:
+        type: string
+      transaction_speed:
+        $ref: '#/definitions/model.TransactionSpeed'
+      type:
+        type: string
+      using_jito:
+        type: boolean
+    required:
+    - budget
+    - max_time_between_transactions
+    - max_transaction_amount
+    - min_time_between_transactions
+    - min_transaction_amount
+    - parallel_transactions_amount
+    - priority_fee
+    - slippage
+    - start_at
+    - target_price
+    - type
     type: object
   model.Deposit:
     properties:
@@ -357,6 +449,15 @@ definitions:
         example: 1234567890
         type: integer
     type: object
+  model.PriorityFees:
+    properties:
+      high:
+        type: number
+      low:
+        type: number
+      medium:
+        type: number
+    type: object
   model.PrivateKey:
     properties:
       private_key:
@@ -453,6 +554,97 @@ definitions:
       email:
         type: string
     type: object
+  model.SmartBuybackCampaign:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      pool_id:
+        type: string
+      pool_program_id:
+        type: string
+      project_id:
+        type: integer
+      provider_id:
+        $ref: '#/definitions/model.SwapProviderID'
+      status:
+        type: string
+      token_mint:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  model.SmartBuybackCampaignTarget:
+    properties:
+      budget:
+        type: string
+      campaign_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      max_time_between_transactions:
+        type: integer
+      max_transactions_budget:
+        type: string
+      min_time_between_transactions:
+        type: integer
+      min_transactions_budget:
+        type: string
+      parallel_transactions_amount:
+        type: integer
+      priority_fee:
+        type: string
+      remaining_budget:
+        type: string
+      slippage:
+        type: integer
+      start_at:
+        type: string
+      status:
+        type: string
+      target_price:
+        type: string
+      transaction_speed:
+        $ref: '#/definitions/model.TransactionSpeed'
+      type:
+        type: string
+      updated_at:
+        type: string
+      using_jito:
+        type: boolean
+    type: object
+  model.SmartBuybackCampaignWithTargets:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      pool_id:
+        type: string
+      pool_program_id:
+        type: string
+      project_id:
+        type: integer
+      provider_id:
+        $ref: '#/definitions/model.SwapProviderID'
+      status:
+        type: string
+      targets:
+        items:
+          $ref: '#/definitions/model.SmartBuybackCampaignTarget'
+        type: array
+      token_mint:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: integer
+    type: object
   model.SolanaVerifyRequest:
     properties:
       publicAddress:
@@ -509,7 +701,11 @@ definitions:
         type: integer
       pool_id:
         type: string
+      priority_fee:
+        type: number
       project_id:
+        type: integer
+      provider_id:
         type: integer
       slippage_bps:
         type: integer
@@ -530,6 +726,15 @@ definitions:
       using_jito:
         type: boolean
     type: object
+  model.SwapProviderID:
+    enum:
+    - 1
+    - 2
+    format: int32
+    type: integer
+    x-enum-varnames:
+    - SwapProviderRaydium
+    - SwapProviderPumpfun
   model.SwapTransaction:
     properties:
       address_from:
@@ -543,6 +748,8 @@ definitions:
       campaign_id:
         type: string
       created_at:
+        type: string
+      debug_message:
         type: string
       id:
         type: integer
@@ -577,6 +784,9 @@ definitions:
         type: number
       parallel_transactions_amount:
         type: integer
+      priority_fee:
+        minimum: 0
+        type: number
       project_id:
         type: integer
       slippage:
@@ -592,6 +802,8 @@ definitions:
     properties:
       budget_sol:
         type: number
+      priority_fees:
+        $ref: '#/definitions/model.PriorityFees'
       rent_sol:
         type: number
       tip_sol:
@@ -622,6 +834,9 @@ definitions:
         type: number
       parallel_transactions_amount:
         type: integer
+      priority_fee:
+        minimum: 0
+        type: number
       project_id:
         type: integer
       slippage:
@@ -1168,6 +1383,211 @@ paths:
       summary: Sign up via Google
       tags:
       - auth
+  /buyback:
+    get:
+      description: Returns all buyback campaigns for the authenticated user.
+      operationId: get-buyback-campaigns
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.SmartBuybackCampaign'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: List buyback campaigns
+      tags:
+      - buyback
+    post:
+      consumes:
+      - application/json
+      description: Creates a new smart buyback campaign with one or more targets.
+      operationId: create-buyback-campaign
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Campaign parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateSmartBuybackCampaignRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.SmartBuybackCampaignWithTargets'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Create buyback campaign
+      tags:
+      - buyback
+  /buyback/{id}:
+    delete:
+      description: Stops an active buyback campaign by its UUID.
+      operationId: stop-buyback-campaign
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Campaign UUID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Stop buyback campaign
+      tags:
+      - buyback
+    get:
+      description: Returns a buyback campaign with its targets by UUID.
+      operationId: get-buyback-campaign-by-id
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Campaign UUID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.SmartBuybackCampaignWithTargets'
+        "400":
+          description: Bad Request (invalid UUID)
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get buyback campaign by ID
+      tags:
+      - buyback
+  /buyback/{id}/transactions:
+    get:
+      description: Returns a paginated list of transactions for a buyback campaign.
+        Optionally filtered by target ID.
+      operationId: get-buyback-transactions
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Campaign UUID
+        format: uuid
+        in: path
+        name: id
+        type: string
+      - description: Target UUID filter
+        format: uuid
+        in: query
+        name: target_id
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.BuybackTransaction'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get buyback transactions
+      tags:
+      - buyback
   /campaigns:
     get:
       description: Returns all campaigns associated with the authenticated user.

@@ -9,17 +9,17 @@
       <slot name="icon-left" />
 
       <input
+        v-model="inputVal"
         :id="label || ''"
-        :type=type
         :step="step"
         :maxlength="maxLength"
-        v-model="inputVal"
         :placeholder=placeholder
+        :autocomplete="'off'"
+        :readonly="is_readonly"
+        :inputmode="inputMods"
         @blur="emits('handleBlur', $event)"
         @input="handleInput"
         @keydown="handleKeydown"
-        :autocomplete="'off'"
-        :readonly="is_readonly"
         class="paragraph-small"
       >
 
@@ -47,6 +47,7 @@ const props = defineProps({
   maxLength: {type: Number, default: 60000},
   errorMessage: {type: String, default: ''},
   label: {type: String, default: ''},
+  inputMod: {type: String, default: ''},
   topAddText: {type: String, default: ''},
   bottomTextLeft: {type: String, default: ''},
   is_readonly: {type: Boolean, default: false},
@@ -64,6 +65,14 @@ const hasTopContent = computed(() => {
     props.label ||
     slots['top-right']
   )
+})
+
+const inputMods = computed(() => {
+  if (props.type === 'number') {
+    return "decimal"
+  } else {
+    return props.inputMod;
+  }
 })
 const hasBottomContent = computed(() => {
   return Boolean(
@@ -83,20 +92,44 @@ const topPadding = computed(() => {
 
 function handleKeydown(event) {
   if (props.type !== 'number') return;
+  const target = event?.target;
+  const current = String(target?.value ?? '');
 
-  if (event.key === '.' && event?.target) {
-    const current = String(event.target.value ?? '');
-    if (current === '' || current === '-' || !props.is_dot_allowed) {
-      event.preventDefault();
-    }
+  if (event.key === '-') {
+    event.preventDefault();
   }
 
-  if (event.key === ',') {
-    event.preventDefault();
+  if ((event.key === ',' || event.key === '.') && target) {
+    if (current === '' || current === '-' || !props.is_dot_allowed) {
+      event.preventDefault();
+      return;
+    }
+
+    if (current.includes('.') || current.includes(',')) {
+      event.preventDefault();
+    }
   }
 }
 
 function handleInput(event) {
+  if (props.type === 'number') {
+    let value = event.target.value;
+
+    value = value.replace(/[^0-9.,]/g, '');
+
+    if (!props.is_dot_allowed) {
+      value = value.replace(/[.,]/g, '');
+    }
+
+    const parts = value.split(/[.,]/);
+    if (parts.length > 2) {
+      value = parts[0] + '.' + parts.slice(1).join('');
+    }
+
+    event.target.value = value;
+    inputVal.value = value;
+  }
+
   emits('handleInput', event);
 }
 </script>
@@ -124,6 +157,7 @@ function handleInput(event) {
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 8px;
 
     border: 1px solid #E5E7EB;
     background: #FFF;
@@ -181,19 +215,6 @@ function handleInput(event) {
 
       overflow: hidden;
       text-overflow: ellipsis;
-
-      /* Chrome, Safari, Edge, Opera */
-      &::-webkit-outer-spin-button,
-      &::-webkit-inner-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
-      }
-
-      /* Firefox */
-      &[type=number] {
-        -moz-appearance: textfield;
-        appearance: textfield;
-      }
     }
   }
 

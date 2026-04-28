@@ -126,3 +126,15 @@ export const GetCampaignAllTransactions = async (id, params=null) => apiInstance
 export const UpdateCampaign = async (id, data) => apiInstance.patch(`/campaigns/${id}`, data);
 export const DeleteCampaign = async (id) => apiInstance.delete(`/campaigns/${id}`);
 export const GetCampaignByID = async (id) => apiInstance.get(`/campaigns/${id}`);
+
+//SmartBuyBack
+export const CreateSmartBuyBack = async(data) => apiInstance.post('/buyback', data);
+export const StopSmartBuyBack = async(id) => apiInstance.delete(`/buyback/${id}`);
+export const GetSmartBuyBack = async(id) => apiInstance.get(`/buyback/${id}`);
+export const GetSmartBuyBackTransactions = async(id, params) => apiInstance.get(`/buyback/${id}/transactions`, {
+    params: {
+        page: params?.page,
+        pageSize: params?.pageSize,
+    }
+});
+export const GetSmartBuyBackHistory = async() => apiInstance.get(`/buyback`);

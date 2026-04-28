@@ -12,22 +12,6 @@
           <HistoryDesktop :columns="columns" :rows="depositHistory"/>
         </div>
         <MobileAdaptsNotification class="selected-cex__mobile"/>
-
-        <!--        <div class="selected-cex__mobile">-->
-        <!--          <UITabs>-->
-        <!--            <UITab-->
-        <!--              v-for="tab in mobileTabs"-->
-        <!--              :key="tab.val"-->
-        <!--              :is_active="selectedTab.val === tab.val"-->
-        <!--              @click="selectedTab = tab"-->
-        <!--            >-->
-        <!--              {{tab.label}}-->
-        <!--            </UITab>-->
-        <!--          </UITabs>-->
-
-        <!--          <TopUpBlock v-show="selectedTab.val === 'top-up'" />-->
-        <!--          <HistoryMobile v-show="selectedTab.val === 'history'" :rows="tableData"/>-->
-        <!--        </div>-->
       </template>
 
       <Modals>

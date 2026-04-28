@@ -13,35 +13,6 @@
           Refresh
         </UIButton>
         <div v-if="isRefreshVisible" class="divider"></div>
-<!--        <div class="dashboard-header__rpc">-->
-<!--          <span class="paragraph-small label">RPC</span>-->
-<!--          <div class="dashboard-header__rpc_dropdown">-->
-<!--            <UIBaseInput :is_readonly="true" v-model="selectedRPC.label" />-->
-<!--&lt;!&ndash;            <UISelect v-model="isRPCOptionsOpen" selected="Helius" />&ndash;&gt;-->
-
-<!--            <div v-if="isRPCOptionsOpen" class="dashboard-header__rpc_options rpc-options">-->
-<!--              <div class="rpc-options__inner">-->
-<!--                <div class="rpc-options__top paragraph-small">-->
-<!--                  RPC Provider-->
-<!--                </div>-->
-<!--                <div class="rpc-options__list">-->
-<!--                  <div-->
-<!--                    :class="['rpc-options__item', {selected: selectedRPC.val === rpc.val}]"-->
-<!--                    v-for="rpc in rpcOptions"-->
-<!--                    :key="rpc.val"-->
-<!--                    @click="selectedRPC = rpc"-->
-<!--                  >-->
-<!--                    <UICheckBox type="round" :model-value="selectedRPC.val === rpc.val"/>-->
-<!--                    <div class="rpc-options__item_info">-->
-<!--                      <span class="paragraph-mini name">{{rpc.label}}</span>-->
-<!--                      <span v-if="selectedRPC.val === rpc.val" class="text">Recommended</span>-->
-<!--                    </div>-->
-<!--                  </div>-->
-<!--                </div>-->
-<!--              </div>-->
-<!--            </div>-->
-<!--          </div>-->
-<!--        </div>-->
         <UISelect
           v-if="userStore.isUserAuth"
           :selected="loginData.email || ''"
@@ -85,7 +56,7 @@ import SVGLogOut from "../SVG/SVGLogOut.vue";
 import SVGLogIn from "../SVG/SVGLogIn.vue";
 import {useModalsStore} from "../../store/modalsStore.js";
 import {useHeaderRefreshStore} from "../../store/headerRefreshStore.js";
-import ProfileImage from "../../../public/images/default-avatar.webp";
+import ProfileImage from "/images/default-avatar.webp";
 import CookieManager from "../../helpers/cookieManager.js";
 import SVGArrowPrevious from "../SVG/SVGArrowPrevious.vue";
 
@@ -116,9 +87,8 @@ const rpcOptions = [
   {label: 'Helius', val: 'helius2'},
 ]
 
-const selectedRPC = ref(rpcOptions[0]);
 const isRefreshVisible = computed(() => {
-  const pages = ['Home', 'MarketSmartBuyback', 'TokenCreate', 'TokenVolumeMaker', 'TokenHistory', 'DashboardNotFound', 'LiquidityPool', 'LiquidityBurn'];
+  const pages = ['Home', 'TokenCreate', 'TokenVolumeMaker', 'TokenHistory', 'DashboardNotFound', 'LiquidityPool', 'LiquidityBurn'];
 
   if (!userStore.isUserAuth) {
     return false;

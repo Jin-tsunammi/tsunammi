@@ -20,6 +20,7 @@ export const useCampaignsStore = defineStore('campaigns', () => {
         parallel_transactions_amount: 1,
         min_transactions_budget: 0,
         max_transactions_budget: 0,
+        priority_fee: 0,
         provider_id: 1,
         min_time_between_transactions: 1000000000, // nanosec
         max_time_between_transactions: 3000000000, // nanosec

@@ -82,8 +82,8 @@
     </div>
     <div v-if="!projectStore.selectedProject || !projectStore.selectedProject?.wallets?.length" class="project-desktop__empty">
       <SVGGlobus />
-      <div class="project-desktop__empty_title paragraph-medium">No address pool</div>
-      <p class="grey paragraph-small regular">This project doesn’t have any address pool yet. Create new address pool or import existing ones to start.</p>
+      <div class="project-desktop__empty_title paragraph-medium">No wallets inside</div>
+      <p class="grey paragraph-small regular">This pool is empty. Create new wallets or import existing ones to start.</p>
       <div class="project-desktop__empty_btns">
         <UIButton color_type="outline" size="large" @cta="emits('openWalletModal', {type: 'create'})">
           Create wallets

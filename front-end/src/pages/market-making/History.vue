@@ -66,8 +66,10 @@
               </div>
             </template>
             <template #created_at="{ item }">
-              <div class="paragraph-small regular">{{ formatDate(item.created_at || '').date }} <span
-                class="paragraph-small regular grey">{{ formatDate(item.created_at || '').time }}</span></div>
+              <div class="created_at paragraph-small regular">
+                <span>{{ formatDate(item.created_at || '').date }}</span>
+                <span class="paragraph-small regular grey">{{ formatDate(item.created_at || '').time }}</span>
+              </div>
             </template>
           </UITable>
         </div>
@@ -200,17 +202,15 @@ const getTokenDetails = (campaign) => {
 
 const campaignStatus = (campaign) => {
   if (!campaign) return '';
-  const status = campaign.status;
+  const status = campaign.status.replaceAll('_', ' ').toLowerCase();
 
   switch (status) {
-    case 'in_use':
+    case 'in use':
       return 'active';
     case 'stop':
       return 'stopped';
-    case 'done':
-      return 'done';
     default:
-      return '';
+      return status;
   }
 }
 
@@ -373,10 +373,15 @@ onMounted(async () => {
     }
   }
 
+  & .created_at {
+    display: flex;
+    flex-direction: column;
+  }
+
   &__price {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: flex-start;
     gap: 5px;
     min-width: 0;
 

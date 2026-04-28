@@ -35,10 +35,13 @@
       <div class="sidebar-menu__bottom">
         <ul class="sidebar-menu__bottom_socials">
           <li>
-            <router-link to=""><SVGDiscord/></router-link>
+            <a href="https://discord.gg/Sa6UqHewbV" target="_blank"><SVGDiscord/></a>
           </li>
           <li>
-            <router-link to=""><SVGTwitter/></router-link>
+            <a href="https://x.com/tsunammitools" target="_blank"><SVGTwitter/></a>
+          </li>
+          <li>
+            <a href="https://t.me/tsunammitools" target="_blank"><SVGTelegram color="white" class="telegram"/></a>
           </li>
         </ul>
       </div>
@@ -46,19 +49,16 @@
   </div>
 </template>
 <script setup>
-import {ref} from "vue";
-import SVGHand from "../SVG/SVGHand.vue";
-import SVGMarket from "../SVG/SVGMarket.vue";
+import {markRaw, ref} from "vue";
 import SVGWallet from "../SVG/SVGWallet.vue";
 import SVGSmallArrowDown from "../SVG/SVGSmallArrowDown.vue";
 import SVGDiscord from "../SVG/SVGDiscord.vue";
 import SVGTwitter from "../SVG/SVGTwitter.vue";
-import SVGLogOut from "../SVG/SVGLogOut.vue";
-import CookieManager from "../../helpers/cookieManager.js";
 import {useSidebarStore} from "../../store/sidebarStore.js";
 import {useRoute} from "vue-router";
 import SVGTokenIcon from "../SVG/SVGTokenIcon.vue";
 import SVGRocket from "../SVG/SVGRocket.vue";
+import SVGTelegram from "../SVG/SVGTelegram.vue";
 
 const sidebarStore = useSidebarStore();
 const route = useRoute();
@@ -66,22 +66,26 @@ const route = useRoute();
 const menu = ref([
   {
     label: 'Token Management',
-    icon: SVGTokenIcon,
+    icon: markRaw(SVGTokenIcon),
     pages: [
       {
-        label: 'Create token',
+        label: 'Create Token',
         name: 'TokenCreate'
       },
       {
-        label: 'Liquidity Pool',
-        name: 'LiquidityPool'
+        label: 'Launch on PumpFun',
+        name: 'LaunchPumpFun'
       },
+      // {
+      //   label: 'Liquidity Pool',
+      //   name: 'LiquidityPool'
+      // },
+      // {
+      //   label: 'Liquidity Burn',
+      //   name: 'LiquidityBurn'
+      // },
       {
-        label: 'Liquidity Burn',
-        name: 'LiquidityBurn'
-      },
-      {
-        label: 'Token activity history',
+        label: 'Token Activity History',
         name: 'TokenHistory'
       }
     ],
@@ -89,7 +93,7 @@ const menu = ref([
   },
   {
     label: 'Wallet Management',
-    icon: SVGWallet,
+    icon: markRaw(SVGWallet),
     pages: [
       {
         label: 'Wallet Pools',
@@ -112,8 +116,8 @@ const menu = ref([
     is_open: true,
   },
   {
-    label: 'Market Operations',
-    icon: SVGRocket,
+    label: 'Market Making',
+    icon: markRaw(SVGRocket),
     pages: [
       {
         label: 'Price Boost',
@@ -126,11 +130,12 @@ const menu = ref([
         params: {campaign_id: 'create'}
       },
       {
-        label: 'Smart Buyback',
-        name: 'MarketSmartBuyback'
+        label: 'Smart Buy/Sell',
+        name: 'MarketSmartBuyback',
+        params: {campaign_id: 'create'}
       },
       {
-        label: 'Ops history',
+        label: 'MM History',
         name: 'MarketHistory'
       },
     ],
@@ -161,7 +166,7 @@ const closeMobileSideBar = () => {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    margin-bottom: 60px;
+    margin-bottom: 20px;
   }
 
   &__block {
@@ -271,6 +276,17 @@ const closeMobileSideBar = () => {
         display: flex;
         align-items: center;
         justify-content: center;
+
+        &:hover {
+          ::v-deep(path) {
+            fill: #EA580C;
+          }
+        }
+
+        & .telegram {
+          width: 20px;
+          height: 20px;
+        }
       }
     }
   }

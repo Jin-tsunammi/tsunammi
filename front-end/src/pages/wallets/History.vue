@@ -114,11 +114,11 @@ onMounted(async () => {
 </script>
 <style scoped lang="scss">
 .history {
+  height: 100%;
   &__content {
     width: 100%;
     display: flex;
     flex-direction: column;
-    min-height: fit-content;
     height: 100%;
 
     &_label {

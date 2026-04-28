@@ -20,7 +20,7 @@
             Active
           </div>
         </div>
-        <div class="stop-campaign__campaign_item">
+        <div v-if="route.name !== 'MarketSmartBuyback'" class="stop-campaign__campaign_item">
           <span class="paragraph-small regular">Progress:</span>
           <div class="stop-campaign__campaign_spend">
             <div class="monospaced-medium info"><span>{{toDynamicFix(modalStore.modalData.item?.spent_budget || 0)}}</span>/{{toDynamicFix(modalStore.modalData.item?.budget || 0)}} Sol</div>
@@ -53,14 +53,17 @@ import RoundedProgress from "../../../UI/RoundedProgress.vue";
 import {useTokensStore} from "../../../../store/tokensStore.js";
 import {computed} from "vue";
 import {toDynamicFix} from "../../../../helpers/index.js";
+import {useRoute} from "vue-router";
 
 const modalStore = useModalsStore();
 const emits = defineEmits(['handleStopCampaign']);
 const tokensStore = useTokensStore();
+const route = useRoute();
 const token = computed(() => {
-  if (!modalStore.modalData.item || !tokensStore.solTokensData[modalStore.modalData.item?.token_mint_from]) return null;
+  const address = route.name === 'MarketSmartBuyback' ? 'token_mint' : 'token_mint_from'
+  if (!modalStore.modalData.item || !tokensStore.solTokensData[modalStore.modalData.item?.[address]]) return null;
 
-  return tokensStore.solTokensData[modalStore.modalData.item.token_mint_from];
+  return tokensStore.solTokensData[modalStore.modalData.item[address]];
 })
 
 const spendPercent = computed(() => {

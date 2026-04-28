@@ -76,7 +76,7 @@ const totalAmount = computed(() => {
     return 0;
   } else {
     if (props.campaignAction === 'pull-up') {
-      return toDynamicFix(props.estimateData.budget_sol + props.estimateData.rent_sol + props.estimateData.tip_sol);
+      return toDynamicFix(props.estimateData.budget_sol + props.estimateData.rent_sol + props.estimateData.tip_sol + campaignStore.campaign.priority_fee);
     } else {
       return toDynamicFix(props.estimateData.budget_sol);
     }

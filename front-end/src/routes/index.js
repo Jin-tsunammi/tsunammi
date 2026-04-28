@@ -55,7 +55,7 @@ export const router = createRouter({
             component: () => import("../pages/market-making/TargetPullUp.vue"),
         },
         {
-            path: '/market-making/smart-buyback',
+            path: '/market-making/smart-buyback/:campaign_id',
             name: 'MarketSmartBuyback',
             component: () => import("../pages/market-making/SmartBuyback.vue"),
         },
@@ -69,12 +69,22 @@ export const router = createRouter({
             name: 'MarketTransactions',
             component: () => import("../pages/market-making/Transactions.vue"),
         },
+        {
+            path: '/market-making/buyback-transactions/:campaign_id',
+            name: 'SmartBuyBackTransactions',
+            component: () => import("../pages/market-making/SmartBuyBackTransactions.vue"),
+        },
 
         // Token
         {
             path: '/token/create-token',
             name: 'TokenCreate',
             component: () => import("../pages/token/CreateToken.vue"),
+        },
+        {
+            path: '/token/launch-pumpfun',
+            name: 'LaunchPumpFun',
+            component: () => import("../pages/token/LaunchPumpFun.vue"),
         },
         {
             path: '/token/liquidity-pool',

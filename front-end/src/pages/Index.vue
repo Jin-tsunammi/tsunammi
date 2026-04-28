@@ -83,7 +83,7 @@
             <h2 class="heading-2">Building in Public</h2>
             <p class="paragraph-medium regular">Tsunammi is building the easiest way to run market making — from launch to liquidity control<br>Get early access to new tools as we ship.</p>
           </div>
-          <a href="https://x.com/MMakingtools" target="_blank">Follow on X</a>
+          <a href="https://x.com/tsunammitools" target="_blank">Follow on X</a>
         </div>
       </div>
     </div>
@@ -100,7 +100,6 @@ import SVGPriceDrop from "../components/SVG/SVGPriceDrop.vue";
 import SVGBuyback from "../components/SVG/SVGBuyback.vue";
 import SVGOpsHistory from "../components/SVG/SVGOpsHistory.vue";
 import SVGWalletsHistory from "../components/SVG/SVGWalletsHistory.vue";
-import SVGTokenHistory from "../components/SVG/SVGTokenHistory.vue";
 import SVGClockBack from "../components/SVG/SVGClockBack.vue";
 import SVGCreateToken from "../components/SVG/SVGCreateToken.vue";
 import SVGArrowLink from "../components/SVG/SVGArrowLink.vue";
@@ -108,6 +107,7 @@ import SVGLogoTsunammi from "../components/SVG/SVGLogoTsunammi.vue";
 import Modals from "../components/UI/Modals.vue";
 import MMTokenImage from "../../public/images/main-token-image.webp";
 import MMImage from "../../public/images/main-mm-image.webp";
+import SVGPumpFun from "../components/SVG/SVGPumpFun.vue";
 
 const topContent = [
   {
@@ -155,6 +155,7 @@ const topContent = [
         title: 'Smart Buyback',
         text: 'Automatically support your token with intelligent buybacks.',
         page: 'MarketSmartBuyback',
+        params: {campaign_id: 'create'},
       },
     ]
   }
@@ -166,12 +167,14 @@ const mmLinks = [
   {label: 'Distribute Funds from CEX', text: 'Auto-split liquidity across wallets.', page: 'WalletsTopUpCex', svg: SVGFundsFromCEX, is_empty: false},
   {label: 'Price Boost', text: 'Strategic buys to pump the price.', page: 'MarketTargetPullUpCreate', params: {campaign_id: 'create'}, svg: SVGPriceBoost, is_empty: false},
   {label: 'Price Drop', text: 'Controlled sells for soft landing.', page: 'MarketTargetDrop', params: {campaign_id: 'create'}, svg: SVGPriceDrop, is_empty: false},
-  {label: 'Smart Buyback', text: 'Auto buyback on price triggers.', page: 'MarketSmartBuyback', svg: SVGBuyback, is_empty: false},
-  {label: 'MM Ops History', text: 'Full log of all market operations.', page: 'MarketHistory', svg: SVGOpsHistory, is_empty: false},
+  {label: 'Smart Buyback', text: 'Auto buyback on price triggers.', page: 'MarketSmartBuyback', params: {campaign_id: 'create'}, svg: SVGBuyback, is_empty: false},
+  {label: 'MM History', text: 'Full log of all market operations.', page: 'MarketHistory', svg: SVGOpsHistory, is_empty: false},
   {label: 'Wallets Ops History', text: 'Track wallet funding and transfers.', page: 'WalletsHistory', svg: SVGWalletsHistory, is_empty: false},
-  {label: 'Token Activity History', text: 'Complete token lifecycle data.', page: 'TokenHistory', svg: SVGTokenHistory, is_empty: false},
   {label: 'Create Token', text: 'Deploy SPL tokens in seconds.', page: 'TokenCreate', svg: SVGCreateToken, is_empty: false},
-  {label: 'Trading Activity', text: 'Launch automated market making.', page: '', svg: SVGClockBack, is_empty: false},
+  {label: 'Launch on PumpFun', text: 'Deploy token to PF launchpad.', page: 'LaunchPumpFun', svg: SVGPumpFun, is_empty: false},
+  // {label: 'Liquidity Pool', text: 'Create DEX pools for trading.', page: 'LiquidityPool', svg: SVGWaves, is_empty: false},
+  // {label: 'Liquidity Burn', text: 'Lock LP tokens permanently.', page: 'LiquidityBurn', svg: SVGBurn, is_empty: false},
+  {label: 'Token Activity History', text: 'Complete token lifecycle data.', page: 'TokenHistory', svg: SVGClockBack, is_empty: false},
   {label: 'empty', text: '', page: '', svg: null, is_empty: true},
 ]
 

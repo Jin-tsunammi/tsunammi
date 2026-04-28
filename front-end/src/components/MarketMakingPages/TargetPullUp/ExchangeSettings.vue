@@ -29,6 +29,11 @@
                   <span class="paragraph-mini regular grey">{{ formatWalletAddress(item.address) }}</span>
                 </div>
               </template>
+              <template #custom-dropdown>
+                <div class="custom-dropdown-content" @click.stop>
+                  <p class="paragraph-small bold">Past mint address or start typing token name.</p>
+                </div>
+              </template>
             </UIDropdown>
           </template>
         </UISelect>
@@ -59,16 +64,15 @@
             />
           </template>
         </UISelect>
-        <UISelect
-          :selected="selectedValidator.name"
-          v-model="isDropDownOpen.validator"
-          label="Select Validator"
-          placeholder="Select Validator"
+        <UIBaseInput
+          v-model="selectedValidator.name"
+          label="Validator"
+          placeholder="Validator"
           size="large"
-          :is_disabled="isEditMode"
+          :is_disabled="true"
           class="exchange-settings__input"
         >
-          <template v-if="selectedValidator?.image" #left-icon>
+          <template v-if="selectedValidator?.image" #icon-left>
             <UIAvatarShow
               class="icon"
               :mint="selectedValidator?.image || ''"
@@ -76,16 +80,7 @@
               :is-token="false"
             />
           </template>
-          <template #dropdown>
-            <UIDropdown
-              :is-open="isDropDownOpen.validator"
-              :selected-option="selectedValidator.name || ''"
-              :options="validators"
-              label="name"
-              @handle-option-select="handleValidatorSelect"
-            />
-          </template>
-        </UISelect>
+        </UIBaseInput>
       </div>
     </div>
   </div>
@@ -101,6 +96,7 @@ import {useTokensStore} from "../../../store/tokensStore.js";
 import UIAvatarShow from "../../UI/UIAvatarShow.vue";
 import Raydium from "../../../../public/images/raydium-icon.webp";
 import PumpFun from "../../../../public/images/pumpfun-icon.webp";
+import UIBaseInput from "../../UI/UIBaseInput.vue";
 
 const props = defineProps({
   isEditMode: {type: Boolean, default: false},
@@ -108,7 +104,6 @@ const props = defineProps({
   errors: {type: Object, default: () => ({})},
   campaignAction: {type: String, default: ''},
 })
-const vModel = defineModel();
 const vModelSearch = defineModel('search');
 const campaignStore = useCampaignsStore();
 const tokensStore = useTokensStore();

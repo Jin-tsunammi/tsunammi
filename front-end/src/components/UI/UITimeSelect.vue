@@ -1,5 +1,5 @@
 <template>
-  <OnClickOutside class="ui-time-picker" @trigger="closeDropdown">
+  <OnClickOutside :class="['ui-time-picker', {error: errorMessage}]" @trigger="closeDropdown">
     <div
       class="ui-time-picker__selected"
       :class="{active: isDropDown}"
@@ -66,14 +66,18 @@
   </OnClickOutside>
 </template>
 <script setup>
-
-import {ref} from "vue";
+import {ref, watch} from "vue";
 import {OnClickOutside} from "@vueuse/components";
 import SVGClock from "../SVG/SVGClock.vue";
 import SVGClose from "../SVG/SVGClose.vue";
 import UIButton from "./UIButton.vue";
 import UINumberIncreaseDecrease from "./UINumberIncreaseDecrease.vue";
 
+const props = defineProps({
+  item: {type: Object, default: null},
+  errorMessage: {type: String, default: ''},
+})
+const emits = defineEmits(["handleTimeApply"]);
 const time = ref('');
 const newTime = ref({
   hh: '00',
@@ -142,6 +146,7 @@ const applyTimeChange = () => {
 
   time.value = newTime.value.hh + ':' + newTime.value.mm;
   closeDropdown();
+  emits('handleTimeApply', {time: time.value, item: props.item})
 }
 
 const validateTime = (type) => {
@@ -161,12 +166,45 @@ const validateTime = (type) => {
 
   newTime.value[type] = String(num).padStart(2, '0')
 }
+
+watch(() => props.item, (newValue) => {
+  const nextStartAt = newValue?.start_at;
+
+  if (!nextStartAt) {
+    if (time.value) {
+      clearTime();
+    }
+    return;
+  }
+
+  const nextDate = new Date(nextStartAt);
+  if (Number.isNaN(nextDate.getTime())) return;
+
+  const nextHh = String(nextDate.getHours()).padStart(2, '0');
+  const nextMm = String(nextDate.getMinutes()).padStart(2, '0');
+  const nextTime = `${nextHh}:${nextMm}`;
+
+  if (time.value !== nextTime) {
+    time.value = nextTime;
+  }
+
+  if (newTime.value.hh !== nextHh || newTime.value.mm !== nextMm) {
+    newTime.value.hh = nextHh;
+    newTime.value.mm = nextMm;
+  }
+}, {immediate: true, deep: true})
 </script>
 <style scoped lang="scss">
 .ui-time-picker {
   height: 40px;
   width: 123px;
   position: relative;
+
+  &.error {
+    & .ui-time-picker__selected {
+      border-color: #EF4444
+    }
+  }
 
   &__selected {
     height: 100%;

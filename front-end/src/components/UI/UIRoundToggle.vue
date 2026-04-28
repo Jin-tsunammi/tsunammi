@@ -1,12 +1,13 @@
 <template>
-  <div class="ui-round-toggle">
-    <span v-if="label" class="paragraph-small regular">{{label}}</span>
-    <button @click="handleChange" :class="{active: isActive}"></button>
+  <div @click="handleChange" :class="['ui-round-toggle', {reverse: isReverse}]">
+    <span v-if="label" class="paragraph-small regular" >{{label}}</span>
+    <button :class="{active: isActive}"></button>
   </div>
 </template>
 <script setup>
 const props = defineProps({
   label: {type: String, default: ''},
+  isReverse: {type: Boolean, default: false},
 })
 
 const isActive = defineModel('isActive', { type: Boolean, default: false });
@@ -20,6 +21,12 @@ const handleChange = () => {
   display: flex;
   align-items: center;
   gap: 8px;
+
+  &.reverse {
+    & span {
+      order: 2;
+    }
+  }
 
   & button {
     transition: .3s ease;

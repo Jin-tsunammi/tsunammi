@@ -1,18 +1,19 @@
 <template>
   <main class="app">
-<!--    <div v-if="route.name !== 'Home'" class="app__header-mobile">-->
-<!--      <HeaderMobile />-->
-<!--    </div>-->
-    <Sidebar />
+    <Sidebar/>
     <div :class="['app__right', {fullWidth: isPageFullWidth}]">
       <div class="app__right_header">
-        <DashboardHeader />
+        <DashboardHeader/>
       </div>
-      <div :class="['app__content', {padding: isPadding}]">
-        <RouterView />
+      <div :class="['app__content_wrapper']">
+        <div :class="['app__content', {padding: isPadding}]">
+          <RouterView/>
+        </div>
+        <div class="app__content_footer paragraph-small regular">
+          <span>@ {{ currentYear }} Tsunammi. All rights reserved</span>
+        </div>
       </div>
     </div>
-<!--    <MobileSidebar />-->
     <Toast/>
     <CookiesNotification v-if="isCookiesVisible" :is-cookies="isCookiesVisible" @close-cookies="closeCookiesModal"/>
   </main>
@@ -21,20 +22,20 @@
 import Toast from "./components/UI/Toast.vue";
 import CookiesNotification from "./components/Login/CookiesNotification.vue";
 import {computed, onMounted, ref} from "vue";
-import HeaderMobile from "./components/Base/HeaderMobile.vue";
-import MobileSidebar from "./components/Base/MobileSidebar.vue";
 import {useRoute} from "vue-router";
 import Sidebar from "./components/Base/Sidebar.vue";
 import DashboardHeader from "./components/Base/DashboardHeader.vue";
-import Modals from "./components/UI/Modals.vue";
 
 const isCookiesVisible = ref(false);
 const route = useRoute();
+const currentYear = computed(() => {
+  return new Date().getFullYear();
+})
 const isPadding = computed(() => {
   return route.name !== 'Home'
 })
 const isPageFullWidth = computed(() => {
-  const pages = ['Home', 'MarketSmartBuyback', 'TokenCreate', 'TokenVolumeMaker', 'TokenHistory', 'DashboardNotFound', 'LiquidityPool', 'LiquidityBurn'];
+  const pages = ['Home'];
 
   return pages.includes(route.name);
 })
@@ -68,6 +69,7 @@ onMounted(() => {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
+    min-height: 0;
     background: #F3F4F6;
 
     & .app__content {
@@ -87,12 +89,36 @@ onMounted(() => {
   }
 
   &__content {
-    height: 100%;
+    flex: 1;
     width: 100%;
-    overflow: auto;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+
+
+    &_wrapper {
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      padding: 0 24px;
+      overflow: auto;
+    }
 
     &.padding {
-      padding: 24px;
+      padding: 24px 0;
+    }
+
+    &_footer {
+      margin: auto 0 0;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-top: 1px solid #D1D5DB;
+      padding: 14px 0;
+      color: #9CA3AF;
     }
   }
 }

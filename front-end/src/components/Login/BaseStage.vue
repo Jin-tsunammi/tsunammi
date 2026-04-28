@@ -51,7 +51,7 @@
   </div>
 </template>
 <script setup>
-import {useRoute, useRouter} from "vue-router";
+import {useRoute} from "vue-router";
 import {computed, ref, watch} from "vue";
 import UIButton from "../UI/UIButton.vue";
 import UIBaseInput from "../UI/UIBaseInput.vue";
@@ -144,7 +144,7 @@ const handleGoogleAuth = async() => {
       user.stsTokenManager.expirationTime
     );
 
-    let resp = null;
+    let resp;
 
     if (props.page === 'signup') {
       resp = await SignUpByGoogle(accessToken);

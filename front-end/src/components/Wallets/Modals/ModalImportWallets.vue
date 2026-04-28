@@ -22,27 +22,36 @@
 
       <div
         v-else
-        class="import-wallets__file file"
+        class="import-wallets__file file file"
       >
-        <input ref="walletFileImportRef" type="file" accept=".txt,.csv,.xlsx,text/plain,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" @change="handleFileChange">
-        <div
-          v-if="!selectedFile.file && !selectedFileError"
-          class="file__empty_wrapper"
-          @dragover.prevent
-          @dragenter.prevent
-          @drop.prevent="handleDrop"
-          @click="triggerFileInput"
-        >
-          <div class="file__empty">
-            <div class="black paragraph-medium">Drag and drop a file here or</div>
-            <UIButton @cta="triggerFileInput" size="regular" color_type="secondary" class="file__upload">
-              <template #left-icon>
-                <SVGUpload/>
-              </template>
-              Upload file
-            </UIButton>
-            <span class="grey regular paragraph-small">Upload file with public wallet addresses</span>
-            <span class="grey regular paragraph-small">Supported formats: .txt, .csv, .xlsx</span>
+        <div class=" file__template paragraph-small medium">
+          <SVGDownload />
+          Download template:
+          <button type="button" class="paragraph-small medium" @click="handleTemplateDownload('csv')">CSV</button>
+          /
+          <button type="button" class="paragraph-small medium" @click="handleTemplateDownload('xlsx')">XLSX</button>
+        </div>
+        <div class="file__inner">
+          <input ref="walletFileImportRef" type="file" accept=".txt,.csv,.xlsx,text/plain,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" @change="handleFileChange">
+          <div
+            v-if="!selectedFile.file && !selectedFileError"
+            class="file__empty_wrapper"
+            @dragover.prevent
+            @dragenter.prevent
+            @drop.prevent="handleDrop"
+            @click="triggerFileInput"
+          >
+            <div class="file__empty">
+              <div class="black paragraph-medium">Drag and drop a file here or</div>
+              <UIButton @cta="triggerFileInput" size="regular" color_type="secondary" class="file__upload">
+                <template #left-icon>
+                  <SVGUpload/>
+                </template>
+                Upload file
+              </UIButton>
+              <span class="grey regular paragraph-small">Upload file with public wallet addresses</span>
+              <span class="grey regular paragraph-small">Supported formats: .txt, .csv, .xlsx</span>
+            </div>
           </div>
         </div>
 
@@ -147,13 +156,18 @@ import {useToastStore} from "../../../store/toastStore.js";
 import {ImportSolWallets} from "../../../api/api.js";
 import SVGUpload from "../../SVG/SVGUpload.vue";
 import bs58 from 'bs58';
-import {useRoute} from "vue-router";
 import SVGSmallArrowDown from "../../SVG/SVGSmallArrowDown.vue";
-import SVGCSVFileIcon from "../../SVG/SVGCSVFileIcon.vue";
 import SVGCircleSlash from "../../SVG/SVGCircleSlash.vue";
 import {errorToast, formatWalletAddress} from "../../../helpers/index.js";
 import * as XLSX from "xlsx";
+import SVGDownload from "../../SVG/SVGDownload.vue";
+import {useImportWalletTemplate} from "../../../composable/useImportWalletTemplate.js";
 
+const props = defineProps({
+  isLocalImport: false,
+})
+const emits = defineEmits(["handleKeysImport"]);
+const {downloadTemplate} = useImportWalletTemplate();
 const ALLOWED_FILE_TYPES = [
   'text/plain',
   'text/csv',
@@ -169,7 +183,6 @@ function isFileAllowed(file) {
 const modalsStore = useModalsStore();
 const projectsStore = useProjectsStore();
 const toastStore = useToastStore();
-const route = useRoute();
 const tabs = [
   {
     label: 'Manual',
@@ -205,7 +218,11 @@ const fileTabData = ref({
 const selectedFileError = ref('');
 const walletFileImportRef = ref(null);
 const isImportDisabled = computed(() => {
-  return !selectedProject.value || !selectedTabValidationData.value.valid_count;
+  if (props.isLocalImport) {
+    return !selectedTabValidationData.value.valid_count;
+  } else {
+    return !selectedProject.value || !selectedTabValidationData.value.valid_count;
+  }
 })
 const selectedTabValidationData = computed(() => {
   if (activeTab.value.val === 'from-file') {
@@ -253,6 +270,10 @@ const selectedFileText = computed(() => {
 })
 const handleTabChange = (tab) => {
   activeTab.value = tab;
+}
+
+const handleTemplateDownload = (format) => {
+  downloadTemplate(format);
 }
 
 const pasteText = async () => {
@@ -392,7 +413,7 @@ const handleWalletsImport = async () => {
   let newFormData = new FormData();
 
   data.private_keys = selectedTabValidationData.value.valid_keys;
-  data.project_ids.push(selectedProject.value.id);
+  data.project_ids.push(selectedProject.value?.id || '');
 
   if (activeTab.value.val === 'from-file') {
     newFormData.append('file', selectedFile.value.file);
@@ -401,9 +422,15 @@ const handleWalletsImport = async () => {
 
   try {
     isImporting.value = true;
-    await ImportSolWallets(data);
 
-    await projectsStore.updateProjectData(selectedProject.value.id);
+    if (!props.isLocalImport) {
+      await ImportSolWallets(data);
+
+      await projectsStore.updateProjectData(selectedProject.value.id);
+    } else {
+      emits('handleKeysImport', data.private_keys)
+    }
+
     modalsStore.closeModal();
   } catch (error) {
     if (error.response.status === 409 && error.response.data.includes('already exist')) {
@@ -566,12 +593,35 @@ watch(() => modalsStore.modalData, (newVal) => {
 }
 
 .file {
-  margin-top: 36px;
+  margin-top: 16px;
   display: flex;
   flex-direction: column;
-  position: relative;
-  align-items: center;
-  justify-content: center;
+
+
+  &__inner {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__template {
+    display: flex;
+    align-items: center;
+    padding: 12px 5.5px;
+    gap: 4px;
+
+    & svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    & button {
+      background: transparent;
+      color: #3B82F6;
+    }
+  }
 
   &.selected {
     align-items: flex-start;

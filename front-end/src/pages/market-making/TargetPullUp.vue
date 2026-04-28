@@ -20,9 +20,12 @@
             :errors="errors"
             :is-edit-mode="isEditMod"
             :campaign-action="campaignAction"
+            :priority-fees="priorityFees"
+            :is-route-changed="isRouteChanged"
           />
           <TargetsAndStopTriggers
             class="target-pull-up__block target"
+            :campaign-action="campaignAction"
             :errors="errors"
           />
           <CampaignEstimate
@@ -137,7 +140,7 @@ import UIEmptyState from "../../components/UI/UIEmptyState.vue";
 import SVGMonitorDot from "../../components/SVG/SVGMonitorDot.vue";
 import CampaignEstimate from "../../components/MarketMakingPages/TargetPullUp/CampaignEstimate.vue";
 import {useCampaignsStore} from "../../store/campaignsStore.js";
-import {calculateBudget, errorToast} from "../../helpers/index.js";
+import {errorToast} from "../../helpers/index.js";
 import Modals from "../../components/UI/Modals.vue";
 import ConfirmationModal from "../../components/UI/Modals/ConfirmationModal.vue";
 import {useModalsStore} from "../../store/modalsStore.js";
@@ -167,6 +170,7 @@ const modalAddNewBudget = ref(0);
 const campaignEstimate = ref(null);
 const isChangesSaving = ref(false);
 const isPoolNotFound = ref(false);
+const isRouteChanged = ref(false);
 const projects = ref([]);
 const searchToken = ref('');
 const isPageLoading = ref(true)
@@ -192,6 +196,7 @@ const jitoData = ref({
   fast: 0.00001,
   extra: 0.0002,
 });
+const priorityFees = ref(null);
 const isEditMod = computed(() => {
   return route.params.campaign_id !== 'create';
 })
@@ -235,34 +240,6 @@ const getJitoData = async () => {
   }
 }
 
-const getTokensList = async () => {
-  const url = new URL(`${import.meta.env.VITE_SOLSCAN_URL}/list`);
-
-  url.search = new URLSearchParams({
-    sort_by: "market_cap",
-    sort_order: "desc",
-    page: "1",
-    page_size: "30"
-  }).toString();
-
-  try {
-    const response = await fetch(
-      url.toString(),
-      {
-        method: "GET",
-        headers: {
-          token: import.meta.env.VITE_SOLSCAN_API_KEY
-        }
-      }
-    );
-
-    const tokensResp = await response.json();
-    tokensList.value = tokensResp.data?.filter(token => token.name && token.symbol);
-  } catch (e) {
-    console.error(e);
-  }
-}
-
 const searchSolToken = async () => {
   const url = new URL(`${import.meta.env.VITE_SOLSCAN_URL}/search`);
 
@@ -297,7 +274,7 @@ const debouncedSearch = debounce((val) => {
   if (val) {
     searchSolToken()
   } else {
-    getTokensList()
+    tokensList.value = [];
   }
 }, 400)
 
@@ -340,7 +317,7 @@ const openModal = async({type, campaign = null}) => {
 }
 
 const getProjectsWithBalance = async () => {
-  let params = null;
+  let params;
 
   if (campaignAction.value === 'pull-up') {
     params = {mint: SOLANA_MINT};
@@ -375,13 +352,7 @@ const handlePageRefresh = async (isRefreshing = false, isAuth=false) => {
   }
 
   if (!userStore.isUserAuth) {
-    try {
-      await getTokensList();
-    } catch (e) {
-      errorToast(e.response.data)
-    } finally {
-      isPageLoading.value = false;
-    }
+    isPageLoading.value = false;
 
     return
   }
@@ -394,7 +365,6 @@ const handlePageRefresh = async (isRefreshing = false, isAuth=false) => {
       const sourceToken = [{source_token_mint: campaignStore.campaign[tokenMint.value]}];
       await tokensStore.updateSolTokensData(sourceToken, 'source_token_mint');
     } else {
-      await getTokensList();
       await campaignStore.getAllActiveCampaigns(activeCampaignsParams.value);
     }
 
@@ -461,13 +431,14 @@ const fetchEstimate = debounce(async (data) => {
     return
   }
   try {
-    let resp = null;
+    let resp;
     if (ExchangeSettingsRef.value && ExchangeSettingsRef.value.selectedDex?.val === 'pumpfun') {
       resp = await GetPumpFunEstimate(data)
     } else {
       resp = await GetRaydiumEstimate(data)
     }
     campaignEstimate.value = resp.data
+    priorityFees.value = resp.data.priority_fees || null;
     isPoolNotFound.value = false;
   } catch (e) {
     console.error(e)
@@ -483,7 +454,6 @@ const fetchEstimate = debounce(async (data) => {
 
 const validateCampaignBeforeStart = () => {
   const campaign = campaignStore.campaign || {};
-  const NANO_IN_SECOND = 1_000_000_000;
 
   const destTokenMint = String(campaign[tokenMint.value] || '').trim();
   const projectId = Number(campaign.project_id);
@@ -573,17 +543,6 @@ const validateCampaignBeforeStart = () => {
     nextErrors.max_transactions_budget = 'Must be less than or equal to total budget';
   }
 
-  const minTimeSeconds = minTimeBetweenTransactionsNs / NANO_IN_SECOND;
-  const maxTimeSeconds = maxTimeBetweenTransactionsNs / NANO_IN_SECOND;
-
-  if (!Number.isFinite(minTimeBetweenTransactionsNs) || minTimeSeconds < 1 || minTimeSeconds > 60) {
-    nextErrors.min_time_between_transactions = 'Min time must be between 1 and 60 seconds';
-  }
-
-  if (!Number.isFinite(maxTimeBetweenTransactionsNs) || maxTimeSeconds < 1 || maxTimeSeconds > 60) {
-    nextErrors.max_time_between_transactions = 'Max time must be between 1 and 60 seconds';
-  }
-
   if (
     Number.isFinite(minTimeBetweenTransactionsNs) &&
     Number.isFinite(maxTimeBetweenTransactionsNs) &&
@@ -614,6 +573,10 @@ const runStartCampaign = async () => {
 
   if (!campaign.budget) delete campaign.budget;
   else if (!campaign.budget_percent) delete campaign.budget_percent;
+
+  const fieldToNumb = ['budget', 'goal_percentage_change', 'max_transactions_budget', 'min_transactions_budget', 'slippage'];
+
+  fieldToNumb.forEach(k => campaign[k] = Number(campaign[k]));
 
   try {
     if (isEditMod.value) {
@@ -696,11 +659,11 @@ watch(() => searchToken.value, (newVal) => {
 })
 
 watch(() => ({
-    budget: campaignStore.campaign.budget,
+    budget: +campaignStore.campaign.budget,
     source_token_mint: campaignAction.value === 'pull-up' ? SOLANA_MINT : campaignStore.campaign[tokenMint.value],
     dest_token_mint: campaignAction.value === 'pull-up' ? campaignStore.campaign[tokenMint.value] : SOLANA_MINT,
     project_id: campaignStore.campaign.project_id,
-    slippage: campaignStore.campaign.slippage,
+    slippage: +campaignStore.campaign.slippage,
     transaction_speed: campaignStore.campaign.transaction_speed,
     dex: ExchangeSettingsRef.value?.selectedDex || {},
   }),
@@ -725,10 +688,15 @@ watch(() => modalsStore.modalData.is_open, (newVal) => {
   }
 });
 watch(() => [route.name, route.params.campaign_id], async () => {
+  isRouteChanged.value = true;
   campaignStore.clearStore();
   campaignEstimate.value = null;
 
   await handlePageRefresh();
+
+  setTimeout(() => {
+    isRouteChanged.value = false;
+  }, 1000)
 })
 
 watch(() => userStore.isUserAuth, async(newVal) => {

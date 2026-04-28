@@ -52,9 +52,10 @@
 
         <!-- NESTED -->
         <Transition name="nested-expand">
-          <div
+          <UIScrollArea
             v-if="expandedRows[index] && hasChildren(element)"
             class="table__nested"
+            :max-height="'calc(48px * 6)'"
           >
             <UITable
               :rows="element[nestedColumnsName]"
@@ -69,7 +70,7 @@
                 <slot :name="slotName" v-bind="slotProps" />
               </template>
             </UITable>
-          </div>
+          </UIScrollArea>
 
           <div v-else-if="expandedRows[index] && isEmptyState">
             <slot name="table-nested-empty" :item="element"/>
@@ -83,6 +84,7 @@
 
 <script setup>
 import { ref, useSlots } from 'vue'
+import UIScrollArea from "./UIScrollArea.vue";
 
 const props = defineProps({
   rows: { type: Array, default: () => [] },

@@ -1,5 +1,5 @@
 {
-  "name": "tsunammi",
+  "name": "mm",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,8 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@metaplex-foundation/mpl-token-metadata": "^2.13.0",
     "@reown/appkit": "^1.8.17",
     "@reown/appkit-adapter-solana": "^1.8.17",
+    "@solana/spl-token": "^0.4.14",
     "@solana/wallet-adapter-wallets": "^0.19.37",
     "@solana/web3.js": "^1.98.4",
     "@vuepic/vue-datepicker": "^12.1.0",

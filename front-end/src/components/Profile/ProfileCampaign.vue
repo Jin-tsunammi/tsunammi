@@ -7,7 +7,7 @@
           :mint="campaignMint"
           :src="token?.image"
         />
-        <div class="profile-campaign__title">
+        <div class="profile-campaign__title" @click="openCampaign">
           <div class="name">
             <span>{{token?.name}}</span>
           </div>
@@ -16,9 +16,9 @@
       </div>
 
       <div class="profile-campaign__details">
-        <div class="profile-campaign__status">
+        <div :class="['profile-campaign__status', campaign?.status?.toLowerCase()]">
           <div class="color monospaced-small"></div>
-          Active
+          {{normilizeCampaignStatus}}
         </div>
 
         <div class="profile-campaign__spend">
@@ -26,40 +26,36 @@
           <div class="monospaced-medium info">
             <span>{{ toDynamicFix(campaign?.spent_budget ?? 0) }}</span>/{{`${toDynamicFix(campaign?.budget ?? 0)} ${tokenSymbol}`}}
           </div>
-          <div class="progress paragraph-small">
-            {{ Math.round(spendPercent) }}%
-            <RoundedProgress
-              :value="spendPercent"
-              :show-text="false"
-            />
-          </div>
         </div>
       </div>
     </div>
 
     <div class="profile-campaign__bottom">
-      <UIButton color_type="outline" size="large" @cta="emits('handleStop')">
-        Stop
-      </UIButton>
-      <UIButton color_type="primary" size="large" @cta="emits('handleAddBudget')">
-        Add Budget
-      </UIButton>
+      <template v-if="normilizeCampaignStatus === 'active'">
+        <UIButton color_type="outline" size="large" @cta="emits('handleStop')">
+          Stop
+        </UIButton>
+        <UIButton v-if="route.name !== 'MarketSmartBuyback'" color_type="primary" size="large" @cta="emits('handleAddBudget')">
+          Add Budget
+        </UIButton>
 
-      <UIButton class="edit" color_type="ghost" size="large" @cta="emits('handleEdit')">
-        <template #left-icon><SVGEdit /></template>
-        Edit
-      </UIButton>
+        <UIButton v-if="route.name !== 'MarketSmartBuyback'" class="edit" color_type="ghost" size="large" @cta="emits('handleEdit')">
+          <template #left-icon><SVGEdit /></template>
+          Edit
+        </UIButton>
+      </template>
     </div>
   </div>
 </template>
 <script setup>
 import { computed } from 'vue'
-import RoundedProgress from "../UI/RoundedProgress.vue";
 import UIButton from "../UI/UIButton.vue";
 import UIAvatarShow from "../UI/UIAvatarShow.vue";
 import { toDynamicFix } from "../../helpers/index.js";
 import {useTokensStore} from "../../store/tokensStore.js";
 import SVGEdit from "../SVG/SVGEdit.vue";
+import {useRoute, useRouter} from "vue-router";
+import {useModalsStore} from "../../store/modalsStore.js";
 
 const props = defineProps({
   campaign: { type: Object, default: null },
@@ -67,14 +63,34 @@ const props = defineProps({
 })
 
 const emits = defineEmits(['handleStop', 'handleAddBudget', 'handleEdit']);
+const route = useRoute();
+const router = useRouter();
 const tokensStore = useTokensStore();
+const modalsStore = useModalsStore();
 
 const mintType = computed(() => {
-  if (props.campaignAction === 'pull-up') return 'token_mint_to';
-  return 'token_mint_from';
+  if (route.name === 'MarketTargetPullUpCreate' || route.name === 'MarketTargetDrop') {
+    if (props.campaignAction === 'pull-up') return 'token_mint_to';
+    return 'token_mint_from';
+  } else {
+    return 'token_mint'
+  }
 })
 const campaignMint = computed(() => {
   return props.campaign?.[mintType.value] || '';
+})
+const normilizeCampaignStatus = computed(() => {
+  if (!props.campaign) return '';
+  const status = props.campaign.status.replaceAll('_', ' ').toLowerCase();
+
+  switch (status) {
+    case 'in use':
+      return 'active';
+    case 'stop':
+      return 'stopped';
+    default:
+      return status;
+  }
 })
 const token = computed(() => {
   if (!props.campaign || !tokensStore.solTokensData[campaignMint.value]) return null;
@@ -85,12 +101,21 @@ const tokenSymbol = computed(() => {
   if (props.campaignAction === 'pull-down') return tokensStore.solTokensData[campaignMint.value]?.symbol || '';
   else return 'Sol';
 })
-const spendPercent = computed(() => {
-  const campaign = props.campaign;
-  if (!campaign?.budget || campaign.budget <= 0) return 0;
-  const progress = (campaign.spent_budget / campaign.budget) * 100;
-  return Math.min(100, Math.max(0, progress))
-})
+
+const openCampaign = () => {
+  if (!props.campaign) return;
+
+  if (modalsStore.modalData.is_open) {
+    modalsStore.closeModal()
+  }
+
+  if (route.name === 'MarketSmartBuyback') {
+    router.push({name: 'SmartBuyBackTransactions', params: {campaign_id: props.campaign.id}});
+
+  } else {
+    router.push({name: 'MarketTransactions', params: {campaign_id: props.campaign.campaign_id}});
+  }
+}
 </script>
 <style scoped lang="scss">
 .profile-campaign {
@@ -110,6 +135,7 @@ const spendPercent = computed(() => {
     align-items: center;
     gap: 5px;
     min-width: 0;
+    cursor: pointer;
 
     & .name {
       display: flex;
@@ -160,6 +186,14 @@ const spendPercent = computed(() => {
     display: flex;
     align-items: center;
     gap: 9px;
+    text-transform: capitalize;
+
+    &.stop, &.error {
+      & .color {
+        background: #DC2626;
+        filter: drop-shadow(0 0 0 #DC2626) drop-shadow(0 1px 2px rgba(22, 163, 74, 0.40));
+      }
+    }
 
     & .color {
       background: #16A34A;

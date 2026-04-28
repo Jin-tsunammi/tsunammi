@@ -6,7 +6,7 @@
           <DefaultAvatar />
         </div>
       </div>
-      <UIBaseInput label="Wallet pool's name" size="large" v-model="projectName" placeholder="Enter pool's name..." />
+      <UIBaseInput label="Wallet Pool's name" size="large" v-model="projectName" placeholder="Enter Pool's name..." />
     </div>
     <div :class="['project-create-modal__btns', {disabled: isInProgress}]">
       <UIButton color_type="outline" size="large" @cta="modalsStore.closeModal">Cancel</UIButton>
@@ -30,9 +30,6 @@ import UIButton from "../../UI/UIButton.vue";
 import {computed, ref, watch} from "vue";
 import {useModalsStore} from "../../../store/modalsStore.js";
 import {useProjectsStore} from "../../../store/projectsStore.js";
-import SVGImage from "../../SVG/SVGImage.vue";
-import SVGPlus from "../../SVG/SVGPlus.vue";
-import SVGEdit from "../../SVG/SVGEdit.vue";
 import UISpinner from "../../UI/UISpinner.vue";
 import DefaultAvatar from "../../UI/DefaultAvatar.vue";
 

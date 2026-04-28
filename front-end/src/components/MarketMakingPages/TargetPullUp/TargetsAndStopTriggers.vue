@@ -11,7 +11,11 @@
           v-model="campaignStore.campaign.goal_percentage_change"
           :error-message="errors?.goal_percentage_change || ''"
           @handle-input="handleInput"
+          @handle-blur="handleBlur($event, 'goal_percentage_change')"
         >
+          <template #icon-left>
+            <span>{{campaignAction === 'pull-up' ? '+' : '-'}}</span>
+          </template>
           <template #icon-right>
             <span>%</span>
           </template>
@@ -26,6 +30,7 @@ import UIBaseInput from "../../UI/UIBaseInput.vue";
 import {useCampaignsStore} from "../../../store/campaignsStore.js";
 
 defineProps({
+  campaignAction: {type: String, default: ''},
   errors: {type: Object, default: () => ({})},
 })
 const emits = defineEmits(['handleErrorClear'])
@@ -36,6 +41,7 @@ function handleInput(event) {
   const cleaned = raw.replace(/[^\d.]/g, '');
   const val = Number(cleaned || 0);
 
+  if (!cleaned.length) return;
 
   if (isNaN(val) || val < 0) {
     campaignStore.campaign.goal_percentage_change = 0;
@@ -49,6 +55,15 @@ function handleInput(event) {
   }
 
   emits('handleErrorClear', 'goal_percentage_change');
+}
+
+const handleBlur = (event, field) => {
+  if (!field) return;
+  const val = String(event.target.value).replace(/,/g, '.');
+
+  if (!val) {
+    campaignStore.campaign[field] = 0;
+  }
 }
 </script>
 <style scoped lang="scss">

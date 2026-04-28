@@ -61,7 +61,7 @@
           v-model="dropDownStatus.project"
           :placeholder="projectInputPlaceholder"
           :selected="selectedProject?.name || ''"
-          label="Select Project wallets"
+          label="Select Wallet Pool"
           :error-message="fieldErrors.project"
         >
           <template #dropdown>
@@ -74,14 +74,14 @@
             >
               <template #custom-dropdown>
                 <div class="custom-dropdown-content" @click.stop>
-                  <div class="paragraph-small bold">You do not have projects yet.</div>
-                  <p class="paragraph-mini regular">Create projects and wallets to start funding.</p>
+                  <div class="paragraph-small bold">You do not have wallet pools yet.</div>
+                  <p class="paragraph-mini regular">Create wallet pool to start funding.</p>
                   <UIButton
                     color_type="ghost"
                     size="large"
                     @cta="openPage('project')"
                   >
-                    Create project
+                    Create wallet pool
 
                     <template #left-icon>
                       <SVGPlus/>
@@ -100,6 +100,7 @@
             label="Q-ty of wallets"
             type="number"
             @handle-input="handleWalletsQuantityInput"
+            @handle-blur="handleWalletsQuantityBlur"
             :error-message="fieldErrors.wallets_qty"
           >
             <template #bottom-right>
@@ -108,6 +109,9 @@
                 :selected-option="quantityOptionSelected"
                 @handle-option-select="handleWalletsQuantitySelect"
               />
+            </template>
+            <template v-if="selectedProject" #bottom-left>
+              <span class="paragraph-mini medium grey">Total wallets: {{selectedProject.wallet_count}}</span>
             </template>
           </UIBaseInput>
         </div>
@@ -163,7 +167,7 @@ import {useRouter} from "vue-router";
 import UIGhostButtonsGroup from "../../UI/UIGhostButtonsGroup.vue";
 import {useToastStore} from "../../../store/toastStore.js";
 import {CreateDeposit} from "../../../api/api.js";
-import {formatAmount, formatText, toDynamicFix} from "../../../helpers/index.js";
+import {formatText, toDynamicFix} from "../../../helpers/index.js";
 
 const props = defineProps({
   projects: {type: Array, default: []},
@@ -225,7 +229,7 @@ const projectInputPlaceholder = computed(() => {
 })
 
 function handleWalletsQuantityInput(event) {
-  if (!selectedProject.value || !selectedProject.value.wallet_count) return cexData.value.quantity = 0;
+  if (!selectedProject.value || !selectedProject.value.wallet_count) return;
   const raw = String(event.target.value);
   const cleaned = raw.replace(/\D+/g, '');
   const val = Number(cleaned || 0);
@@ -249,6 +253,15 @@ function handleWalletsQuantityInput(event) {
   }
 
   handleErrorClear('wallets_qty');
+}
+
+const handleWalletsQuantityBlur = (event) => {
+  const val = event.target.value;
+  if (!val || !selectedProject.value || !selectedProject.value?.wallet_count) {
+    cexData.value.quantity = 0;
+  } else if (Number(val) > selectedProject.value.wallet_count) {
+    cexData.value.quantity = selectedProject.value.wallet_count;
+  }
 }
 
 const openPage = (type) => {
@@ -334,10 +347,10 @@ const handleTopUp = async() => {
   try {
     const data = {
       account_id: selectedCEX.value.id,
-      min_amount: cexData.value.min_deposit,
-      max_amount: cexData.value.max_deposit ? cexData.value.max_deposit : cexData.value.min_deposit,
+      min_amount: Number(cexData.value.min_deposit),
+      max_amount: Number(cexData.value.max_deposit) ? Number(cexData.value.max_deposit) : Number(cexData.value.min_deposit),
       project_id: selectedProject.value.id,
-      quantity: cexData.value.quantity
+      quantity: Number(cexData.value.quantity)
     }
     const resp = await CreateDeposit(data);
 

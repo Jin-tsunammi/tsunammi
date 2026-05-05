@@ -58,6 +58,7 @@ type SwapParams struct {
 	TokenProgram            solana.PublicKey
 	Program                 solana.PublicKey
 	FeeProgram              solana.PublicKey
+	FeeRecipientNew         solana.PublicKey
 }
 
 func FetchBondingCurveState(
@@ -200,6 +201,11 @@ func FetchBondingSwapParams(
 		return nil, apperrors.Internal("failed to derive bonding curve v2", err)
 	}
 
+	feeRecipient, err := solana.PublicKeyFromBase58("5YxQFdt3Tr9zJLvkFccqXVUwhdTWJQc1fFg2YPbxvxeD")
+	if err != nil {
+		return nil, apperrors.Internal("failed to get fee recipient account public key")
+	}
+
 	return &SwapParams{
 		GlobalID:                GlobalConfigPubkey,
 		BondingCurveID:          bondingCurveID,
@@ -217,6 +223,7 @@ func FetchBondingSwapParams(
 		TokenProgram:            tokenProgram,
 		Program:                 ProgramID,
 		FeeProgram:              FeeProgramID,
+		FeeRecipientNew:         feeRecipient,
 	}, nil
 }
 

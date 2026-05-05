@@ -8,6 +8,7 @@ import (
 	"mm/internal/client/solanarpc"
 	"mm/internal/model"
 	"mm/pkg/apperrors"
+	"mm/pkg/solutil"
 
 	bin "github.com/gagliardetto/binary"
 	"github.com/gagliardetto/solana-go"
@@ -61,6 +62,8 @@ type SwapParams struct {
 	PoolID                           solana.PublicKey
 	PoolV2                           solana.PublicKey
 	GlobalConfigID                   solana.PublicKey
+	FeeRecipient                     solana.PublicKey
+	QuoteMintATAFeeRecipient         solana.PublicKey
 }
 
 func FetchAMMPoolState(ctx context.Context, rpc solanarpc.SolanaRPC, params *model.PoolParams, inputTokenMint, outputTokenMint solana.PublicKey) (*PoolStateWithReserve, error) {
@@ -241,6 +244,16 @@ func FetchAMMSwapParams(ctx context.Context, rpc solanarpc.SolanaRPC, poolID, us
 		return nil, apperrors.Internal("failed to derive pool v2", err)
 	}
 
+	feeRecipient, err := solana.PublicKeyFromBase58("5YxQFdt3Tr9zJLvkFccqXVUwhdTWJQc1fFg2YPbxvxeD")
+	if err != nil {
+		return nil, apperrors.Internal("failed to get fee recipient public key", err)
+	}
+
+	quoteMintATAfeeRecipient, _, err := FindQuoteMintATAForFeeRecipient(feeRecipient, pool.QuoteMint, mintAccounts.Value[1].Owner)
+	if err != nil {
+		return nil, apperrors.Internal("failed to get quote mint ata for fee recipient", err)
+	}
+
 	return &SwapParams{
 		Pool:                             pool,
 		PoolID:                           poolID,
@@ -263,6 +276,8 @@ func FetchAMMSwapParams(ctx context.Context, rpc solanarpc.SolanaRPC, poolID, us
 		CoinCreatorVaultAuthority:        coinCreatorVaultAuthority,
 		EventAuthority:                   eventAuthority,
 		PoolV2:                           poolV2,
+		FeeRecipient:                     feeRecipient,
+		QuoteMintATAFeeRecipient:         quoteMintATAfeeRecipient,
 	}, nil
 }
 
@@ -345,19 +360,7 @@ func FindFeeConfig() (solana.PublicKey, uint8, error) {
 }
 
 func FindATAWithTokenProgram(owner, mint, tokenProgram solana.PublicKey) (solana.PublicKey, uint8, error) {
-	addr, bump, err := solana.FindProgramAddress(
-		[][]byte{
-			owner.Bytes(),
-			tokenProgram.Bytes(),
-			mint.Bytes(),
-		},
-		assoc.ProgramID,
-	)
-	if err != nil {
-		return solana.PublicKey{}, 0, err
-	}
-
-	return addr, bump, nil
+	return solutil.FindAssociatedTokenAddressWithProgram(owner, mint, tokenProgram)
 }
 
 func FindEventAuthority() (solana.PublicKey, uint8, error) {
@@ -387,6 +390,10 @@ func FindPoolV2(baseMint solana.PublicKey) (solana.PublicKey, uint8, error) {
 	}
 
 	return addr, bump, nil
+}
+
+func FindQuoteMintATAForFeeRecipient(recipient, mint, tokenProgram solana.PublicKey) (solana.PublicKey, uint8, error) {
+	return solutil.FindAssociatedTokenAddressWithProgram(recipient, mint, tokenProgram)
 }
 
 func buildSwapInstruction(
@@ -467,6 +474,15 @@ func buildBuyExactQuoteInInstruction(
 			genericInstruction.AccountValues,
 			solana.Meta(params.PoolV2),
 		)
+		genericInstruction.AccountValues = append(
+			genericInstruction.AccountValues,
+			solana.Meta(params.FeeRecipient),
+		)
+		genericInstruction.AccountValues = append(
+			genericInstruction.AccountValues,
+			solana.Meta(params.QuoteMintATAFeeRecipient).WRITE(),
+		)
+
 	}
 
 	return instruction, nil
@@ -513,6 +529,15 @@ func buildSellInstruction(
 			genericInstruction.AccountValues,
 			solana.Meta(params.PoolV2),
 		)
+		genericInstruction.AccountValues = append(
+			genericInstruction.AccountValues,
+			solana.Meta(params.FeeRecipient),
+		)
+		genericInstruction.AccountValues = append(
+			genericInstruction.AccountValues,
+			solana.Meta(params.QuoteMintATAFeeRecipient).WRITE(),
+		)
+
 	}
 
 	return instruction, nil

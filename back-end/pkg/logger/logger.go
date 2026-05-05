@@ -12,6 +12,11 @@ import (
 const timeFormat = "2006-01-02 15:04:05"
 
 func InitLogger(c *config.Config) *zap.Logger {
+	level, err := zapcore.ParseLevel(c.App.LogLevel)
+	if err != nil {
+		level = zap.InfoLevel
+	}
+
 	encoderCfg := zapcore.EncoderConfig{
 		TimeKey:     "time",
 		LevelKey:    "level",
@@ -33,7 +38,7 @@ func InitLogger(c *config.Config) *zap.Logger {
 	core := zapcore.NewCore(
 		encoder,
 		zapcore.AddSync(os.Stdout),
-		zap.NewAtomicLevelAt(zap.InfoLevel),
+		zap.NewAtomicLevelAt(level),
 	)
 
 	logger := zap.New(core)

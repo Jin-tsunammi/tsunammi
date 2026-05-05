@@ -5,8 +5,9 @@ import (
 	"errors"
 	"mm/internal/client/solanarpc"
 	"mm/internal/model"
+	"mm/internal/pricing"
 	"mm/internal/storage/repository"
-	"mm/internal/worker"
+	"mm/internal/worker/swaptarget"
 	"mm/pkg/apperrors"
 	"mm/pkg/mtype"
 	repo "mm/pkg/repository"
@@ -21,7 +22,7 @@ import (
 type CampaignService struct {
 	CampaignRepository    *repository.SwapCampaignRepository
 	TransactionRepository *repository.SwapTransactionRepository
-	TaskManager           *worker.SwapTargetManager
+	TaskManager           *swaptarget.SwapTargetManager
 	TransactionManager    *repo.TransactionManager
 	solanaRPC             solanarpc.SolanaRPC
 }
@@ -29,7 +30,7 @@ type CampaignService struct {
 func NewCampaignService(
 	campaignRepository *repository.SwapCampaignRepository,
 	transactionRepository *repository.SwapTransactionRepository,
-	taskManager *worker.SwapTargetManager,
+	taskManager *swaptarget.SwapTargetManager,
 	transactionManager *repo.TransactionManager,
 	solanaRPC solanarpc.SolanaRPC,
 ) *CampaignService {
@@ -107,7 +108,7 @@ func (s *CampaignService) GetCampaigns(ctx context.Context, userID uint64, page,
 			continue
 		}
 
-		currentPrice, err := calculatePoolPrice(ctx, s.solanaRPC, account, poolIDs[index], tokeMintFrom, tokeMintTo)
+		currentPrice, err := pricing.CalculatePoolPrice(ctx, s.solanaRPC, account, poolIDs[index], tokeMintFrom, tokeMintTo)
 
 		if err != nil {
 			errs[index] = err
@@ -292,7 +293,7 @@ func (s *CampaignService) GetCampaignByID(ctx context.Context, campaignID uuid.U
 		return nil, apperrors.Internal("failed to parse token mint to", err)
 	}
 
-	currentPrice, err := calculatePoolPrice(ctx, s.solanaRPC, account, poolID, tokenMintFrom, tokenMintTo)
+	currentPrice, err := pricing.CalculatePoolPrice(ctx, s.solanaRPC, account, poolID, tokenMintFrom, tokenMintTo)
 	if err != nil {
 		return nil, apperrors.Internal("failed to calculate pool price", err)
 	}

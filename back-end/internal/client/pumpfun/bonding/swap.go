@@ -2,6 +2,7 @@ package bonding
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"mm/internal/client/jito"
@@ -10,7 +11,7 @@ import (
 	"mm/internal/client/raydium"
 	"mm/internal/client/solanarpc"
 	"mm/internal/model"
-	"mm/internal/storage/repository"
+	"mm/internal/swapbudget"
 	"mm/internal/swaperror"
 	"mm/internal/swaptxlog"
 	"mm/pkg/apperrors"
@@ -20,7 +21,6 @@ import (
 
 	bin "github.com/gagliardetto/binary"
 	"github.com/gagliardetto/solana-go"
-	assoc "github.com/gagliardetto/solana-go/programs/associated-token-account"
 	"github.com/gagliardetto/solana-go/programs/token"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/google/uuid"
@@ -28,40 +28,48 @@ import (
 )
 
 type Client struct {
-	RPC                   solanarpc.SolanaRPC
-	jitoClient            *jito.Client
-	campaignRepository    *repository.SwapCampaignRepository
-	transactionRepository *repository.SwapTransactionRepository
-	logger                *zap.Logger
+	RPC        solanarpc.SolanaRPC
+	jitoClient *jito.Client
+	logger     *zap.Logger
 }
 
 func NewClient(
 	rpc solanarpc.SolanaRPC,
 	jitoClient *jito.Client,
-	campaignRepository *repository.SwapCampaignRepository,
-	transactionRepository *repository.SwapTransactionRepository,
 	logger *zap.Logger,
 ) *Client {
 	return &Client{
-		RPC:                   rpc,
-		jitoClient:            jitoClient,
-		campaignRepository:    campaignRepository,
-		transactionRepository: transactionRepository,
-		logger:                logger,
+		RPC:        rpc,
+		jitoClient: jitoClient,
+		logger:     logger,
+	}
+}
+
+type reservedTx struct {
+	tx     *solana.Transaction
+	amount *big.Int
+}
+
+func releaseAll(b *swapbudget.SwapBudget, items []reservedTx) {
+	for _, item := range items {
+		if item.amount != nil {
+			b.Release(item.amount)
+		}
 	}
 }
 
 func (c *Client) Swap(
 	ctx context.Context,
 	campaignID uuid.UUID,
-	remainingBudget *atomic.Pointer[big.Int],
+	targetID *uuid.UUID,
+	remainingBudget *swapbudget.SwapBudget,
 	tasks []*model.AsyncSwapTask,
 	baseParams []raydium.SwapParams,
 	configs []raydium.TWAPConfig,
 	blockHash *atomic.Pointer[solana.Hash],
-) (err error) {
+) (results []swaptxlog.Result, err error) {
 	if len(tasks) == 0 || len(tasks) != len(baseParams) {
-		return apperrors.BadRequest("invalid params length")
+		return nil, apperrors.BadRequest("invalid params length")
 	}
 
 	task := tasks[0]
@@ -75,218 +83,295 @@ func (c *Client) Swap(
 		AddressTo:     baseParam.UserDestToken.String(),
 	}
 
-	if remainingBudget.Load().Sign() <= 0 {
-		err = swaptxlog.LogSwapTransaction(ctx, raydium.BudgetExceededError, campaignID, logParams, c.transactionRepository, c.logger)
-		if err != nil {
-			return err
-		}
-		return raydium.BudgetExceededError
+	if remainingBudget.Remaining().Sign() <= 0 {
+		return []swaptxlog.Result{{Params: logParams, Err: swaperror.BudgetExceededError}}, swaperror.BudgetExceededError
 	}
 
 	pool, err := FetchBondingCurveState(ctx, c.RPC, task.PoolParams, baseParam.InputTokenMint, baseParam.OutputTokenMint)
 	if err != nil {
-		return apperrors.Internal("failed to fetch bonding curve state", err)
+		return nil, apperrors.Internal("failed to fetch bonding curve state", err)
 	}
 
-	currentPrice, err := calculateBondingCurvePrice(pool)
+	currentPrice, err := calculateBondingCurvePrice(pool, baseParam.InputTokenMint)
 	if err != nil {
-		return apperrors.Internal("failed to calculate bonding price", err)
+		return nil, apperrors.Internal("failed to calculate bonding price", err)
 	}
 
 	if raydium.IsTargetReached(currentPrice, task.GoalPrice, task.TaskType) {
-		return raydium.PriceIsAlreadyReachedError
-	}
-
-	latestHash, err := c.RPC.GetLatestBlockhash(ctx)
-	if err != nil {
-		return err
-	}
-	blockHash.Store(latestHash)
-
-	key := task.SourceAddress
-	if solutil.IsSOLLikeMint(task.SourceTokenMint) {
-		key = task.PrivateKey.PublicKey()
-	}
-
-	account, err := c.RPC.GetAccountInfo(ctx, key)
-	if err != nil {
-		return err
+		return nil, raydium.PriceIsAlreadyReachedError
 	}
 
 	minTransAmount := new(big.Int).SetUint64(cfg.MinTransactionsAmount)
 	maxTransAmount := new(big.Int).SetUint64(cfg.MaxTransactionsAmount)
 
-	amountIn, err := raydium.RandBigIntRange(minTransAmount, maxTransAmount)
-	if err != nil {
-		return err
+	txs := make([]reservedTx, 0, len(tasks))
+	defer func() {
+		for _, item := range txs {
+			params := logParams
+			params.TransactionHash = item.tx.Signatures[0].String()
+			results = append(results, swaptxlog.Result{Params: params, Err: err})
+		}
+	}()
+
+	latestHash := blockHash.Load()
+	if latestHash == nil {
+		latestBlockHash, err := c.RPC.GetLatestBlockhash(ctx)
+		if err != nil {
+			return nil, err
+		}
+		latestHash = latestBlockHash
+		blockHash.Store(latestBlockHash)
 	}
 
-	subBudget := new(big.Int).Sub(remainingBudget.Load(), amountIn)
-	if subBudget.Sign() < 0 {
-		return raydium.BudgetExceededError
-	}
-
-	if account != nil && account.Value != nil {
-		if solutil.IsSOLLikeMint(task.SourceTokenMint) {
-			if amountIn.Cmp(new(big.Int).SetUint64(account.Value.Lamports)) > 0 {
-				if minTransAmount.Cmp(new(big.Int).SetUint64(account.Value.Lamports)) > 0 {
-					return fmt.Errorf("not enough source balance: %w", swaperror.ErrInsufficientFunds)
-				}
-				amountIn = new(big.Int).SetUint64(cfg.MinTransactionsAmount)
-			}
-		} else if account.Value.Data != nil && account.Value.Data.GetBinary() != nil {
-			tokenAcc := token.Account{}
-			if tokenErr := tokenAcc.UnmarshalWithDecoder(bin.NewBinDecoder(account.Value.Data.GetBinary())); tokenErr == nil {
-				if amountIn.Cmp(new(big.Int).SetUint64(tokenAcc.Amount)) > 0 {
-					if minTransAmount.Cmp(new(big.Int).SetUint64(tokenAcc.Amount)) > 0 {
-						return fmt.Errorf("not enough source balance: %w", swaperror.ErrInsufficientFunds)
-					}
-					amountIn = new(big.Int).SetUint64(cfg.MinTransactionsAmount)
-				}
-			}
+	keys := make([]solana.PublicKey, len(tasks))
+	for index, task := range tasks {
+		if task.SourceTokenMint.Equals(solana.WrappedSol) {
+			keys[index] = task.PrivateKey.PublicKey()
+		} else {
+			keys[index] = task.SourceAddress
 		}
 	}
 
+	rpcResults, err := c.RPC.GetMultipleAccountsWithNoLimits(ctx, keys...)
+	if err != nil {
+		return nil, err
+	}
+
+	accounts := make([]*rpc.Account, 0, len(keys))
+	for _, result := range rpcResults {
+		accounts = append(accounts, result.Value...)
+	}
+
+	errs := make([]error, len(tasks))
 	tokenMint := baseParam.InputTokenMint
 	if solutil.IsSOLLikeMint(tokenMint) {
 		tokenMint = baseParam.OutputTokenMint
 	}
 
-	swapParams, err := FetchBondingSwapParams(ctx, c.RPC, task.PoolID, task.PrivateKey.PublicKey(), tokenMint)
-	if err != nil {
-		return apperrors.Internal("failed to fetch bonding swap params", err)
-	}
+	for index, task := range tasks {
+		amountIn, err := remainingBudget.Reserve(minTransAmount, maxTransAmount)
+		if err != nil {
+			errs[index] = err
+			continue
+		}
+		reservedAmount := new(big.Int).Set(amountIn)
 
-	tx, err := c.buildSwapTransaction(
-		amountIn,
-		latestHash,
-		pool,
-		swapParams,
-		task,
-		cfg,
-	)
-	if err != nil {
-		return apperrors.Internal("failed to build tx", err)
-	}
+		account := accounts[index]
+		if account == nil {
+			remainingBudget.Release(reservedAmount)
+			continue
+		}
 
-	simulated, err := c.RPC.SimulateTransaction(ctx, tx, &rpc.SimulateTransactionOpts{
-		SigVerify:              false,
-		Commitment:             rpc.CommitmentProcessed,
-		ReplaceRecentBlockhash: true,
-	})
-	if err != nil {
-		logParams.TransactionHash = tx.Signatures[0].String()
-		if logErr := swaptxlog.LogSwapTransaction(ctx, err, campaignID, logParams, c.transactionRepository, c.logger); logErr != nil {
-			return logErr
-		}
-		message := strings.ToLower(err.Error())
-		if strings.Contains(message, "429") || strings.Contains(message, "rate limit") || strings.Contains(message, "too many requests") {
-			return fmt.Errorf("failed to simulate tx: %w: %w", swaperror.ErrRateLimit, err)
-		}
-		if strings.Contains(message, "gateway timeout") || strings.Contains(message, "context deadline exceeded") || strings.Contains(message, "deadline exceeded") || strings.Contains(message, "timeout") {
-			return fmt.Errorf("failed to simulate tx: %w: %w", swaperror.ErrGatewayTimeout, err)
-		}
-		return fmt.Errorf("failed to simulate tx: %w: %w", swaperror.ErrSimulationError, err)
-	}
-	if simulated != nil && simulated.Value.Err != nil {
-		if strings.Contains(fmt.Sprint(simulated.Value.Logs), "NotEnoughTokensToSell") {
-			return fmt.Errorf("not enough tokens to sell: %w: %w", swaperror.ErrInsufficientFunds, NotEnoughTokensToSellError)
-		}
-		err = fmt.Errorf("simulation failed: %v, logs: %v", simulated.Value.Err, simulated.Value.Logs)
-		message := strings.ToLower(err.Error())
-		if strings.Contains(message, "slippage") {
-			err = fmt.Errorf("simulation failed: %w: %w", swaperror.ErrSlippageExceeded, err)
-		} else if strings.Contains(message, "insufficient funds") || strings.Contains(message, "empty funds") || strings.Contains(message, "input token account empty") {
-			err = fmt.Errorf("simulation failed: %w: %w", swaperror.ErrInsufficientFunds, err)
-		} else if strings.Contains(message, "custom program error") {
-			err = fmt.Errorf("simulation failed: %w: %w", swaperror.ErrCustomProgramError, err)
-		} else if strings.Contains(message, "compute budget exceeded") || strings.Contains(message, "computebudgetexceeded") || strings.Contains(message, "computational budget exceeded") || strings.Contains(message, "exceeded the maximum number of instructions allowed") {
-			err = fmt.Errorf("simulation failed: %w: %w", swaperror.ErrComputeBudgetExceeded, err)
+		if task.SourceTokenMint.Equals(solana.WrappedSol) {
+			if amountIn.Cmp(new(big.Int).SetUint64(account.Lamports)) > 0 {
+				if minTransAmount.Cmp(new(big.Int).SetUint64(account.Lamports)) > 0 {
+					remainingBudget.Release(reservedAmount)
+					continue
+				}
+				amountIn = new(big.Int).SetUint64(configs[index].MinTransactionsAmount)
+			}
 		} else {
-			err = fmt.Errorf("simulation failed: %w: %w", swaperror.ErrSimulationError, err)
+			if account.Data == nil || account.Data.GetBinary() == nil {
+				remainingBudget.Release(reservedAmount)
+				continue
+			}
+
+			tokenAcc := token.Account{}
+			if tokenErr := tokenAcc.UnmarshalWithDecoder(bin.NewBinDecoder(account.Data.GetBinary())); tokenErr != nil {
+				remainingBudget.Release(reservedAmount)
+				continue
+			}
+
+			if amountIn.Cmp(new(big.Int).SetUint64(tokenAcc.Amount)) > 0 {
+				if minTransAmount.Cmp(new(big.Int).SetUint64(tokenAcc.Amount)) > 0 {
+					remainingBudget.Release(reservedAmount)
+					continue
+				}
+				amountIn = new(big.Int).SetUint64(configs[index].MinTransactionsAmount)
+			}
 		}
-		logParams.TransactionHash = tx.Signatures[0].String()
-		if logErr := swaptxlog.LogSwapTransaction(ctx, err, campaignID, logParams, c.transactionRepository, c.logger); logErr != nil {
-			return logErr
+
+		// if reserved 10 and amountIn reduced to 4, need to release diff (6) now
+		if amountIn.Cmp(reservedAmount) < 0 {
+			diff := new(big.Int).Sub(reservedAmount, amountIn)
+			remainingBudget.Release(diff)
+			reservedAmount = new(big.Int).Set(amountIn)
 		}
-		return err
+
+		swapParams, sErr := FetchBondingSwapParams(ctx, c.RPC, task.PoolID, task.PrivateKey.PublicKey(), tokenMint)
+		if sErr != nil {
+			errs[index] = apperrors.Internal("failed to fetch pump bonding swap params", sErr)
+			remainingBudget.Release(reservedAmount)
+			continue
+		}
+
+		tx, err := c.buildSwapTransaction(
+			amountIn,
+			latestHash,
+			pool,
+			swapParams,
+			task,
+			configs[index],
+		)
+		if err != nil {
+			errs[index] = apperrors.Internal("failed to build tx", err)
+			remainingBudget.Release(reservedAmount)
+			continue
+		}
+
+		simulated, sErr := c.RPC.SimulateTransaction(ctx, tx, &rpc.SimulateTransactionOpts{
+			SigVerify:              false,
+			Commitment:             rpc.CommitmentProcessed,
+			ReplaceRecentBlockhash: true,
+		})
+		if sErr != nil {
+			message := strings.ToLower(sErr.Error())
+			if strings.Contains(message, "429") || strings.Contains(message, "rate limit") || strings.Contains(message, "too many requests") {
+				errs[index] = fmt.Errorf("failed to simulate tx: %w: %w", swaperror.ErrRateLimit, sErr)
+				remainingBudget.Release(reservedAmount)
+				continue
+			}
+			if strings.Contains(message, "gateway timeout") || strings.Contains(message, "context deadline exceeded") || strings.Contains(message, "deadline exceeded") || strings.Contains(message, "timeout") {
+				errs[index] = fmt.Errorf("failed to simulate tx: %w: %w", swaperror.ErrGatewayTimeout, sErr)
+				remainingBudget.Release(reservedAmount)
+				continue
+			}
+			errs[index] = fmt.Errorf("failed to simulate tx: %w: %w", swaperror.ErrSimulationError, sErr)
+			remainingBudget.Release(reservedAmount)
+			continue
+		}
+		if simulated != nil && simulated.Value.Err != nil {
+			simErr := fmt.Errorf("simulation failed: %v, logs: %v", simulated.Value.Err, simulated.Value.Logs)
+			message := strings.ToLower(simErr.Error())
+			if strings.Contains(message, "slippage") {
+				errs[index] = fmt.Errorf("simulation failed: %w: %w", swaperror.ErrSlippageExceeded, simErr)
+				remainingBudget.Release(reservedAmount)
+				continue
+			}
+			if strings.Contains(message, "insufficient funds") || strings.Contains(message, "empty funds") || strings.Contains(message, "input token account empty") {
+				errs[index] = fmt.Errorf("simulation failed: %w: %w", swaperror.ErrInsufficientFunds, simErr)
+				remainingBudget.Release(reservedAmount)
+				continue
+			}
+			if strings.Contains(message, "custom program error") {
+				errs[index] = fmt.Errorf("simulation failed: %w: %w", swaperror.ErrCustomProgramError, simErr)
+				remainingBudget.Release(reservedAmount)
+				continue
+			}
+			if strings.Contains(message, "compute budget exceeded") || strings.Contains(message, "computebudgetexceeded") || strings.Contains(message, "computational budget exceeded") || strings.Contains(message, "exceeded the maximum number of instructions allowed") {
+				errs[index] = fmt.Errorf("simulation failed: %w: %w", swaperror.ErrComputeBudgetExceeded, simErr)
+				remainingBudget.Release(reservedAmount)
+				continue
+			}
+			errs[index] = fmt.Errorf("simulation failed: %w: %w", swaperror.ErrSimulationError, simErr)
+			remainingBudget.Release(reservedAmount)
+			continue
+		}
+
+		txs = append(txs, reservedTx{
+			tx:     tx,
+			amount: reservedAmount,
+		})
 	}
 
+	// do not return and cancel valid transactions if some returned an error
+	buildErr := errors.Join(errs...)
+	if len(txs) == 0 {
+		if raydium.IsAllErrorAre(errs, swaperror.BudgetExceededError) {
+			return nil, swaperror.BudgetExceededError
+		}
+		if buildErr != nil {
+			return nil, errors.New(buildErr.Error())
+		}
+		return nil, nil
+	}
+	if buildErr != nil {
+		c.logger.Warn("some swap txs were skipped", zap.Error(buildErr))
+	}
+
+	for _, a := range txs {
+		c.logger.Info("buyback tx publish disabled",
+			zap.String("campaign_id", campaignID.String()),
+			zap.String("target_id", func() string {
+				if targetID == nil {
+					niluuid := uuid.Nil
+					targetID = &niluuid
+				}
+				return targetID.String()
+			}()),
+			zap.String("direction", fmt.Sprintf("%s -> %s", task.SourceTokenMint.String(), task.DestTokenMint.String())),
+			zap.String("tx", a.tx.Signatures[0].String()),
+			zap.String("amount_atomic", a.amount.String()),
+			zap.Float64("amount", solanarpc.FromAtomicUnit(a.amount.Uint64(), task.SourceTokenDecimals)),
+			zap.String("current_price", currentPrice.RatString()),
+			zap.String("goal_price", task.GoalPrice.RatString()),
+			zap.String("remaining_budget", remainingBudget.Remaining().String()),
+		)
+	}
+	// dry run
+	// return nil, nil
 	if task.UsingJito {
-		tip, tipErr := c.jitoClient.CalculateTip(ctx, task.TransactionSpeed)
-		if tipErr != nil {
-			err = tipErr
-			logParams.TransactionHash = tx.Signatures[0].String()
-			if logErr := swaptxlog.LogSwapTransaction(ctx, err, campaignID, logParams, c.transactionRepository, c.logger); logErr != nil {
-				return logErr
-			}
-			return err
+		tip, err := c.jitoClient.CalculateTip(ctx, task.TransactionSpeed)
+		if err != nil {
+			releaseAll(remainingBudget, txs)
+			return nil, err
 		}
 
-		tipAccount, tipAccErr := c.jitoClient.GetTipAccount(ctx)
-		if tipAccErr != nil {
-			err = tipAccErr
-			logParams.TransactionHash = tx.Signatures[0].String()
-			if logErr := swaptxlog.LogSwapTransaction(ctx, err, campaignID, logParams, c.transactionRepository, c.logger); logErr != nil {
-				return logErr
-			}
-			return err
+		tipAccount, err := c.jitoClient.GetTipAccount(ctx)
+		if err != nil {
+			releaseAll(remainingBudget, txs)
+			return nil, err
 		}
 
-		tipTx, tipTxErr := jito.BuildTipTransaction(task.PrivateKey, tip, *tipAccount, *latestHash)
-		if tipTxErr != nil {
-			err = tipTxErr
-			logParams.TransactionHash = tx.Signatures[0].String()
-			if logErr := swaptxlog.LogSwapTransaction(ctx, err, campaignID, logParams, c.transactionRepository, c.logger); logErr != nil {
-				return logErr
-			}
-			return err
+		tipTx, err := jito.BuildTipTransaction(task.PrivateKey, tip, *tipAccount, *latestHash)
+		if err != nil {
+			releaseAll(remainingBudget, txs)
+			return nil, err
 		}
 
-		if broadcastErr := c.jitoClient.BroadcastBundle(ctx, []*solana.Transaction{tx, tipTx}, ProgramID); broadcastErr != nil {
-			err = broadcastErr
-			logParams.TransactionHash = tx.Signatures[0].String()
-			if logErr := swaptxlog.LogSwapTransaction(ctx, err, campaignID, logParams, c.transactionRepository, c.logger); logErr != nil {
-				return logErr
-			}
-			return err
+		bundle := make([]*solana.Transaction, 0, len(txs)+1)
+		for _, item := range txs {
+			bundle = append(bundle, item.tx)
 		}
-	} else {
-		if _, sendErr := c.RPC.SendTransactionWithOpts(ctx, tx, rpc.TransactionOpts{
-			SkipPreflight:       false,
-			PreflightCommitment: rpc.CommitmentProcessed,
-		}); sendErr != nil {
-			message := strings.ToLower(sendErr.Error())
+		bundle = append(bundle, tipTx)
+
+		if err = c.jitoClient.BroadcastBundle(ctx, bundle, ProgramID); err != nil {
+			if errors.Is(err, swaperror.ErrBundleRejected) {
+				releaseAll(remainingBudget, txs)
+			}
+			return nil, err
+		}
+
+		return nil, nil
+	}
+	errs = make([]error, len(txs))
+	for index, item := range txs {
+		_, err = c.RPC.SendTransactionWithOpts(ctx,
+			item.tx,
+			rpc.TransactionOpts{
+				SkipPreflight:       false,
+				PreflightCommitment: rpc.CommitmentProcessed,
+			})
+		if err != nil {
+			message := strings.ToLower(err.Error())
 			if strings.Contains(message, "computebudgetexceeded") || strings.Contains(message, "compute budget exceeded") || strings.Contains(message, "computational budget exceeded") {
-				err = fmt.Errorf("failed to send tx: %w: %w", swaperror.ErrComputeBudgetExceeded, sendErr)
-			} else if strings.Contains(message, "429") || strings.Contains(message, "rate limit") || strings.Contains(message, "too many requests") {
-				err = fmt.Errorf("failed to send tx: %w: %w", swaperror.ErrRateLimit, sendErr)
-			} else if strings.Contains(message, "gateway timeout") || strings.Contains(message, "context deadline exceeded") || strings.Contains(message, "deadline exceeded") || strings.Contains(message, "timeout") {
-				err = fmt.Errorf("failed to send tx: %w: %w", swaperror.ErrGatewayTimeout, sendErr)
-			} else {
-				err = sendErr
+				errs[index] = fmt.Errorf("failed to send tx: %w: %w", swaperror.ErrComputeBudgetExceeded, err)
+				continue
 			}
-			logParams.TransactionHash = tx.Signatures[0].String()
-			if logErr := swaptxlog.LogSwapTransaction(ctx, err, campaignID, logParams, c.transactionRepository, c.logger); logErr != nil {
-				return logErr
+			if strings.Contains(message, "429") || strings.Contains(message, "rate limit") || strings.Contains(message, "too many requests") {
+				errs[index] = fmt.Errorf("failed to send tx: %w: %w", swaperror.ErrRateLimit, err)
+				continue
 			}
-			return err
+			if strings.Contains(message, "gateway timeout") || strings.Contains(message, "context deadline exceeded") || strings.Contains(message, "deadline exceeded") || strings.Contains(message, "timeout") {
+				errs[index] = fmt.Errorf("failed to send tx: %w: %w", swaperror.ErrGatewayTimeout, err)
+				continue
+			}
+			errs[index] = err
+			continue
 		}
 	}
 
-	remainingBudget.Store(subBudget)
-	logParams.TransactionHash = tx.Signatures[0].String()
-	if logErr := swaptxlog.LogSwapTransaction(ctx, err, campaignID, logParams, c.transactionRepository, c.logger); logErr != nil {
-		return logErr
-	}
-	c.logger.Info("bonding swap completed",
-		zap.String("campaign_id", campaignID.String()),
-		zap.String("pool_id", task.PoolID.String()),
-		zap.String("source_mint", task.SourceTokenMint.String()),
-		zap.String("dest_mint", task.DestTokenMint.String()),
-		zap.String("tx", tx.Signatures[0].String()),
-	)
-	return nil
+	return nil, errors.Join(errs...)
 }
 
 func (c *Client) buildSwapTransaction(
@@ -355,11 +440,16 @@ func (c *Client) buildSwapTransaction(
 
 	instrs := make([]solana.Instruction, 0, 2)
 	if isSolToToken && !task.ATAKeyCreated {
-		instrs = append(instrs, assoc.NewCreateInstruction(
+		createDestATAInstr, err := solutil.NewCreateAssociatedTokenAccountInstruction(
 			task.PrivateKey.PublicKey(),
 			task.PrivateKey.PublicKey(),
 			task.DestTokenMint,
-		).Build())
+			params.TokenProgram,
+		)
+		if err != nil {
+			return nil, err
+		}
+		instrs = append(instrs, createDestATAInstr)
 	}
 	instrs = append(instrs, swapInstr)
 
@@ -456,6 +546,10 @@ func buildBuyExactSolInInstruction(
 			genericInstruction.AccountValues,
 			solana.Meta(params.BondingCurveV2),
 		)
+		genericInstruction.AccountValues = append(
+			genericInstruction.AccountValues,
+			solana.Meta(params.FeeRecipientNew).WRITE(),
+		)
 	}
 
 	return instruction, nil
@@ -495,16 +589,30 @@ func buildSellInstruction(
 			genericInstruction.AccountValues,
 			solana.Meta(params.BondingCurveV2),
 		)
+		genericInstruction.AccountValues = append(
+			genericInstruction.AccountValues,
+			solana.Meta(params.FeeRecipientNew).WRITE(),
+		)
 	}
 
 	return instruction, nil
 }
 
-func calculateBondingCurvePrice(pool *PoolStateWithReserve) (*big.Rat, error) {
+func calculateBondingCurvePrice(pool *PoolStateWithReserve, inputTokenMint solana.PublicKey) (*big.Rat, error) {
+	if solutil.IsSOLLikeMint(inputTokenMint) {
+		// pullup: ReserveA=SOL, ReserveB=token -> SOL/token
+		return poolmath.ConstantProductCalculatePrice(
+			pool.ReserveB,
+			pool.ReserveA,
+			uint64(pool.BaseMintDecimals),
+			uint64(pool.QuoteMintDecimals),
+		), nil
+	}
+	// pulldown: ReserveA=token, ReserveB=SOL -> SOL/token
 	return poolmath.ConstantProductCalculatePrice(
 		pool.ReserveA,
 		pool.ReserveB,
 		uint64(pool.BaseMintDecimals),
-		uint64(pool.QuoteMintDecimals),
+		uint64(solana.SolDecimals),
 	), nil
 }

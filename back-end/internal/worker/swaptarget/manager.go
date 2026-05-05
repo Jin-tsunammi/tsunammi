@@ -1,8 +1,9 @@
-package worker
+package swaptarget
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"math/rand"
 	"mm/config"
@@ -19,6 +20,9 @@ import (
 	"mm/internal/model"
 	"mm/internal/storage/cache"
 	"mm/internal/storage/repository"
+	"mm/internal/swapbudget"
+	"mm/internal/swaperror"
+	"mm/internal/swaptxlog"
 	"mm/pkg/apperrors"
 	"sync"
 	"sync/atomic"
@@ -54,10 +58,17 @@ type SwapTargetManager struct {
 	currentSlot        uint64
 	latestBlockhash    atomic.Pointer[solana.Hash]
 	padding            uint64
-	campaignRepository *repository.SwapCampaignRepository
+	computeUnitLimit   uint32
+	campaignRepository campaignRepository
+	transactionRepo    *repository.SwapTransactionRepository
 }
 
-func NewSwapTargetManager(logger *zap.Logger, raydiumCPMMClient *cpmm.Client, raydiumAMMClient *ammv4.Client, pumpAMMClient *pumpAMM.Client, pumpBondingClient *pumpBonding.Client, solanaRPC solanarpc.SolanaRPC, schedule cache.JitoScheduleStorage, cfg *config.Config, solanaWs *solanaws.Client, campaignRepository *repository.SwapCampaignRepository, decimalCache cache.RateStorage) *SwapTargetManager {
+type campaignRepository interface {
+	UpdateStatusByID(ctx context.Context, status string, campaignID uuid.UUID) error
+	UpdateDoneIfNoPendingTransactions(ctx context.Context, campaignID uuid.UUID) (bool, error)
+}
+
+func NewSwapTargetManager(logger *zap.Logger, raydiumCPMMClient *cpmm.Client, raydiumAMMClient *ammv4.Client, pumpAMMClient *pumpAMM.Client, pumpBondingClient *pumpBonding.Client, solanaRPC solanarpc.SolanaRPC, schedule cache.JitoScheduleStorage, cfg *config.Config, solanaWs *solanaws.Client, campaignRepo *repository.SwapCampaignRepository, transactionRepo *repository.SwapTransactionRepository, decimalCache cache.RateStorage) *SwapTargetManager {
 	return &SwapTargetManager{
 		logger:             logger,
 		raydiumCPMMClient:  raydiumCPMMClient,
@@ -77,7 +88,9 @@ func NewSwapTargetManager(logger *zap.Logger, raydiumCPMMClient *cpmm.Client, ra
 		closeCh:            make(chan struct{}),
 		currentSlot:        0,
 		padding:            cfg.Jito.SlotPadding,
-		campaignRepository: campaignRepository,
+		computeUnitLimit:   cfg.App.ComputeUnitLimit,
+		campaignRepository: campaignRepo,
+		transactionRepo:    transactionRepo,
 	}
 }
 
@@ -86,7 +99,7 @@ func (m *SwapTargetManager) AddTarget(
 	minTimeBetweenTransactions, maxTimeBetweenTransactions time.Duration,
 	campaignID uuid.UUID,
 	parallelTransactionsAmount int,
-	remainingBudget *atomic.Pointer[big.Int],
+	remainingBudget *swapbudget.SwapBudget,
 	data []*model.AsyncSwapTask,
 ) error {
 	concurrentTask := &concurrentSwapTask{
@@ -104,11 +117,44 @@ func (m *SwapTargetManager) AddTarget(
 	}
 
 	go func() {
-		_ = m.executeTarget(campaignID, 0, parallelTransactionsAmount, minTimeBetweenTransactions, maxTimeBetweenTransactions, remainingBudget)
+		m.runTarget(campaignID, parallelTransactionsAmount, minTimeBetweenTransactions, maxTimeBetweenTransactions, remainingBudget)
 	}()
 
 	return nil
 
+}
+
+func (m *SwapTargetManager) runTarget(campaignID uuid.UUID, parallelTransactionsAmount int, minTimeBetweenTransactions, maxTimeBetweenTransactions time.Duration, remainingBudget *swapbudget.SwapBudget) {
+	err := m.executeTarget(campaignID, 0, parallelTransactionsAmount, minTimeBetweenTransactions, maxTimeBetweenTransactions, remainingBudget)
+
+	m.removeData(campaignID)
+	m.removeStop(campaignID)
+
+	ctx := context.Background()
+
+	switch {
+	case err == nil:
+		if statusErr := m.campaignRepository.UpdateStatusByID(ctx, model.StatusDone, campaignID); statusErr != nil {
+			m.logger.Error("failed to update campaign status", zap.Error(statusErr))
+		}
+	case errors.Is(err, targetStoppedError):
+		if statusErr := m.campaignRepository.UpdateStatusByID(ctx, model.StatusStop, campaignID); statusErr != nil {
+			m.logger.Error("failed to update campaign status", zap.Error(statusErr))
+		}
+	case errors.Is(err, swaperror.BudgetExceededError):
+		if statusErr := m.campaignRepository.UpdateStatusByID(ctx, model.StatusBudgetDone, campaignID); statusErr != nil {
+			m.logger.Error("failed to update campaign status", zap.Error(statusErr))
+		}
+	case errors.Is(err, swaperror.ErrInsufficientFunds), errors.Is(err, pumpBonding.NotEnoughTokensToSellError):
+		if statusErr := m.campaignRepository.UpdateStatusByID(ctx, model.StatusInsufficientFunds, campaignID); statusErr != nil {
+			m.logger.Error("failed to update campaign status", zap.Error(statusErr))
+		}
+	default:
+		m.logger.Error("execute target failed", zap.Error(err))
+		if statusErr := m.campaignRepository.UpdateStatusByID(ctx, model.StatusError, campaignID); statusErr != nil {
+			m.logger.Error("failed to update campaign status", zap.Error(statusErr))
+		}
+	}
 }
 
 func (m *SwapTargetManager) DeleteTarget(ctx context.Context, campaignID uuid.UUID) error {
@@ -171,7 +217,14 @@ func (m *SwapTargetManager) close() {
 	close(m.closeCh)
 }
 
-func (m *SwapTargetManager) executeTarget(campaignID uuid.UUID, slot uint64, parallelTransactionsAmount int, minTimeBetweenTransactions, maxTimeBetweenTransactions time.Duration, remainingBudget *atomic.Pointer[big.Int]) (err error) {
+func (m *SwapTargetManager) executeTarget(
+	campaignID uuid.UUID,
+	slot uint64,
+	parallelTransactionsAmount int,
+	minTimeBetweenTransactions,
+	maxTimeBetweenTransactions time.Duration,
+	remainingBudget *swapbudget.SwapBudget,
+) (err error) {
 	const batchSize = jito.BundleLimit - 1
 	nextSlot := slot
 
@@ -218,7 +271,7 @@ func (m *SwapTargetManager) executeTarget(campaignID uuid.UUID, slot uint64, par
 
 				if err != nil {
 					m.logger.Info("cycle finished", zap.Uint64("slot", nextSlot), zap.Any("err", err))
-					return m.finishTarget(campaignID, remainingBudget, err)
+					return err
 				}
 			}
 		} else if nextSlot > m.currentSlot {
@@ -240,7 +293,7 @@ func (m *SwapTargetManager) executeTarget(campaignID uuid.UUID, slot uint64, par
 
 			if err != nil {
 				m.logger.Info("cycle finished", zap.Uint64("slot", nextSlot), zap.Any("err", err))
-				return m.finishTarget(campaignID, remainingBudget, err)
+				return err
 			}
 		} else {
 			m.logger.Info("slot already reached or passed, executing immediately", zap.Uint64("requested_slot", nextSlot), zap.Uint64("current_slot", m.currentSlot))
@@ -253,7 +306,7 @@ func (m *SwapTargetManager) executeTarget(campaignID uuid.UUID, slot uint64, par
 		}
 		if err != nil {
 			m.logger.Info("cycle finished", zap.Uint64("slot", nextSlot), zap.Any("err", err))
-			return m.finishTarget(campaignID, remainingBudget, err)
+			return err
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), transactionsLimit)
@@ -276,7 +329,7 @@ func (m *SwapTargetManager) executeTarget(campaignID uuid.UUID, slot uint64, par
 
 		wg.Add(len(configs))
 
-		for i := 0; i < len(configs); i++ {
+		for i := range configs {
 			go func(idx int) {
 				defer wg.Done()
 
@@ -286,16 +339,23 @@ func (m *SwapTargetManager) executeTarget(campaignID uuid.UUID, slot uint64, par
 				}()
 
 				var localErr error
+				var results []swaptxlog.Result
 
 				switch tasks[idx][0].PoolProgramID {
 				case raydiumcpswap.ProgramID:
-					localErr = m.raydiumCPMMClient.Swap(ctx, campaignID, remainingBudget, tasks[idx], params[idx], configs[idx], &m.latestBlockhash)
+					results, localErr = m.raydiumCPMMClient.Swap(ctx, campaignID, nil, remainingBudget, tasks[idx], params[idx], configs[idx], &m.latestBlockhash)
 				case raydiumamm.ProgramID:
-					localErr = m.raydiumAMMClient.Swap(ctx, campaignID, remainingBudget, tasks[idx], params[idx], configs[idx], &m.latestBlockhash)
+					results, localErr = m.raydiumAMMClient.Swap(ctx, campaignID, nil, remainingBudget, tasks[idx], params[idx], configs[idx], &m.latestBlockhash)
 				case pumpAMM.ProgramID:
-					localErr = m.pumpAMMClient.Swap(ctx, campaignID, remainingBudget, tasks[idx], params[idx], configs[idx], &m.latestBlockhash)
+					results, localErr = m.pumpAMMClient.Swap(ctx, campaignID, nil, remainingBudget, tasks[idx], params[idx], configs[idx], &m.latestBlockhash)
 				case pumpBonding.ProgramID:
-					localErr = m.pumpBondingClient.Swap(ctx, campaignID, remainingBudget, tasks[idx], params[idx], configs[idx], &m.latestBlockhash)
+					results, localErr = m.pumpBondingClient.Swap(ctx, campaignID, nil, remainingBudget, tasks[idx], params[idx], configs[idx], &m.latestBlockhash)
+				}
+
+				for _, result := range results {
+					if logErr := swaptxlog.LogSwapTransaction(ctx, result.Err, campaignID, nil, result.Params, m.transactionRepo, m.logger); logErr != nil {
+						localErr = errors.Join(localErr, logErr)
+					}
 				}
 
 				if localErr != nil {
@@ -308,9 +368,22 @@ func (m *SwapTargetManager) executeTarget(campaignID uuid.UUID, slot uint64, par
 		cancel()
 
 		err = nil
-		for _, swapErr := range errs {
-			if errors.Is(swapErr, raydium.BudgetExceededError) || errors.Is(swapErr, pumpBonding.NotEnoughTokensToSellError) {
-				err = raydium.BudgetExceededError
+		for idx, swapErr := range errs {
+			if errors.Is(swapErr, swaperror.ErrInsufficientFunds) || errors.Is(swapErr, pumpBonding.NotEnoughTokensToSellError) {
+				if remainingTasks := concurrentTask.removeTasks(tasks[idx]); remainingTasks > 0 {
+					m.logger.Info(
+						"removed insufficiently funded swap tasks",
+						zap.Int("removed", len(tasks[idx])),
+						zap.Int("remaining", remainingTasks),
+					)
+					errs[idx] = nil
+					continue
+				}
+				err = swaperror.ErrInsufficientFunds
+				break
+			}
+			if errors.Is(swapErr, swaperror.BudgetExceededError) {
+				err = swaperror.BudgetExceededError
 				break
 			}
 		}
@@ -324,14 +397,17 @@ func (m *SwapTargetManager) executeTarget(campaignID uuid.UUID, slot uint64, par
 
 		m.logger.Info("cycle finished", zap.Uint64("slot", nextSlot), zap.Any("err", err))
 
-		if finishedErr := m.finishTarget(campaignID, remainingBudget, err); finishedErr != nil {
-			return finishedErr
-		}
 		if m.isTerminalTargetError(err) {
-			return nil
-		}
-		if err != nil {
+			if errors.Is(err, raydium.PriceIsAlreadyReachedError) {
+				return nil
+			}
 			return err
+		}
+		if err == nil {
+			budget := remainingBudget.Remaining()
+			if budget == nil || budget.Sign() <= 0 {
+				return swaperror.BudgetExceededError
+			}
 		}
 
 		if useJito {
@@ -340,7 +416,7 @@ func (m *SwapTargetManager) executeTarget(campaignID uuid.UUID, slot uint64, par
 				return scheduleErr
 			}
 			if targetSlot == 0 {
-				return nil
+				return fmt.Errorf("invalid 0 schedule")
 			}
 
 			nextSlot = targetSlot - m.padding
@@ -360,43 +436,18 @@ func (m *SwapTargetManager) executeTarget(campaignID uuid.UUID, slot uint64, par
 		select {
 		case <-stop:
 			timer.Stop()
-			return m.finishTarget(campaignID, remainingBudget, targetStoppedError)
+			return targetStoppedError
 		case <-timer.C:
 			nextSlot = 0
 		}
 	}
 }
 
-func (m *SwapTargetManager) finishTarget(campaignID uuid.UUID, remainingBudget *atomic.Pointer[big.Int], err error) error {
-	if m.isTerminalTargetError(err) {
-		m.removeData(campaignID)
-		m.removeStop(campaignID)
-
-		if errors.Is(err, targetStoppedError) {
-			return m.campaignRepository.UpdateStatusByID(context.Background(), model.StatusStop, campaignID)
-		}
-
-		_, updateErr := m.campaignRepository.UpdateDoneIfNoPendingTransactions(context.Background(), campaignID)
-		return updateErr
-	}
-
-	if err == nil {
-		budget := remainingBudget.Load()
-		if budget == nil || budget.Sign() <= 0 {
-			m.removeData(campaignID)
-			m.removeStop(campaignID)
-			_, updateErr := m.campaignRepository.UpdateDoneIfNoPendingTransactions(context.Background(), campaignID)
-			return updateErr
-		}
-	}
-
-	return nil
-}
-
 func (m *SwapTargetManager) isTerminalTargetError(err error) bool {
 	return errors.Is(err, raydium.PriceIsAlreadyReachedError) ||
 		errors.Is(err, targetStoppedError) ||
-		errors.Is(err, raydium.BudgetExceededError) ||
+		errors.Is(err, swaperror.BudgetExceededError) ||
+		errors.Is(err, swaperror.ErrInsufficientFunds) ||
 		errors.Is(err, pumpBonding.NotEnoughTokensToSellError)
 }
 

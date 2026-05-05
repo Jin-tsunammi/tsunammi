@@ -6,7 +6,6 @@ import (
 )
 
 func parsePaginationParams(page, pageSize string) (parsedPage, parsedPageSize int, err error) {
-
 	if page != "" {
 		parsedPage, err = strconv.Atoi(page)
 		if err != nil {

@@ -11,6 +11,7 @@ import (
 	"mm/internal/storage/cache"
 	"mm/internal/storage/repository"
 	"mm/pkg/apperrors"
+	"mm/pkg/solutil"
 	"slices"
 	"sync"
 	"time"
@@ -159,7 +160,7 @@ func (s *ProjectService) FetchProjectWithWalletsByMint(ctx context.Context, user
 			if mint.Equals(solana.SolMint) {
 				tokenAddress = publicKey
 			} else {
-				tokenAddress, _, err = solana.FindAssociatedTokenAddress(publicKey, mint)
+				tokenAddress, _, err = solutil.FindAssociatedTokenAddressWithProgram(publicKey, mint, solana.TokenProgramID)
 				if err != nil {
 
 					walletErrs[indexW] = err
@@ -309,7 +310,7 @@ func (s *ProjectService) FetchProjectWithWalletByIDAndMint(ctx context.Context, 
 			fmt.Println("solana.SolMint")
 			tokenAddress = publicKey
 		} else {
-			tokenAddress, _, err = solana.FindAssociatedTokenAddress(publicKey, mint)
+			tokenAddress, _, err = solutil.FindAssociatedTokenAddressWithProgram(publicKey, mint, solana.TokenProgramID)
 			if err != nil {
 				errs[indexW] = err
 				continue

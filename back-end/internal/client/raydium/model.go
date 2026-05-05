@@ -4,13 +4,11 @@ import (
 	"errors"
 	"math/big"
 	"mm/internal/model"
-	"mm/pkg/apperrors"
 
 	"github.com/gagliardetto/solana-go"
 )
 
 var PriceIsAlreadyReachedError = errors.New("price is already reached")
-var BudgetExceededError = apperrors.BadRequest("budget exceeded")
 
 type SwapParams struct {
 	UserWallet           solana.PublicKey

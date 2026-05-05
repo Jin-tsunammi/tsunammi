@@ -3,23 +3,23 @@ package service
 import (
 	"context"
 	"errors"
+	"math"
 	"math/big"
 	"time"
 
+	"mm/config"
+	"mm/internal/client/helius"
 	"mm/internal/client/jito"
-	"mm/internal/client/pumpfun"
-	"mm/internal/client/raydium"
-	raydiumamm "mm/internal/client/raydium/ammv4/ammv4_client"
-	raydiumcpswap "mm/internal/client/raydium/cpmm/cpmm_client"
 	"mm/internal/client/solanarpc"
+	"mm/internal/common"
 	"mm/internal/model"
 	"mm/internal/storage/repository"
 	"mm/internal/storage/secret"
-	"mm/internal/worker"
+	"mm/internal/swapbudget"
+	"mm/internal/worker/swaptarget"
 	"mm/pkg/apperrors"
 	"mm/pkg/mtype"
 	"mm/pkg/solutil"
-	"sync/atomic"
 
 	bin "github.com/gagliardetto/binary"
 	"github.com/gagliardetto/solana-go"
@@ -36,46 +36,41 @@ const (
 )
 
 type SwapService struct {
-	dexProviders           map[model.SwapProviderID]dexProvider
+	dexProviders           map[model.SwapProviderID]model.DexProvider
 	solanaRPC              solanarpc.SolanaRPC
 	projectRepository      *repository.ProjectRepository
 	swapCampaignRepository *repository.SwapCampaignRepository
-	manager                *worker.SwapTargetManager
+	manager                *swaptarget.SwapTargetManager
 	keyStorage             *secret.KeyStorage
 	jitoClient             *jito.Client
+	heliusClient           *helius.Client
 	logger                 *zap.Logger
-}
-
-type fetchPoolResult struct {
-	poolID              solana.PublicKey
-	poolProgramID       solana.PublicKey
-	sourceTokenDecimals uint8
-	destTokenDecimals   uint8
+	computeUnixLimit       uint32
 }
 
 func NewSwapService(
-	raydiumClient *raydium.Client,
-	pumpfunClient *pumpfun.Client,
+	dexProviders map[model.SwapProviderID]model.DexProvider,
 	rpc solanarpc.SolanaRPC,
 	projectRepository *repository.ProjectRepository,
 	swapCampaignRepository *repository.SwapCampaignRepository,
-	manager *worker.SwapTargetManager,
+	manager *swaptarget.SwapTargetManager,
 	keyStorage *secret.KeyStorage,
 	jitoClient *jito.Client,
+	heliusClient *helius.Client,
 	logger *zap.Logger,
+	cfg *config.Config,
 ) *SwapService {
 	return &SwapService{
-		dexProviders: map[model.SwapProviderID]dexProvider{
-			model.SwapProviderRaydium: &raydiumProvider{client: raydiumClient, rpc: rpc},
-			model.SwapProviderPumpfun: &pumpfunProvider{client: pumpfunClient},
-		},
+		dexProviders:           dexProviders,
 		solanaRPC:              rpc,
 		projectRepository:      projectRepository,
 		swapCampaignRepository: swapCampaignRepository,
 		manager:                manager,
 		keyStorage:             keyStorage,
 		jitoClient:             jitoClient,
+		heliusClient:           heliusClient,
 		logger:                 logger,
+		computeUnixLimit:       cfg.App.ComputeUnitLimit,
 	}
 }
 
@@ -93,8 +88,30 @@ func (s *SwapService) CreatePullUpCampaign(ctx context.Context, req *model.Targe
 		req.Budget = totalBalance * (req.BudgetPercent / 100)
 	}
 
-	wallets, _, err = filterWalletsForCampaign(wallets, req.MinTransactionsBudget, req.Budget, func(wallet model.Wallet) float64 {
+	wallets, _, err = s.filterWalletsForCampaign(wallets, req.MinTransactionsBudget, req.Budget, func(wallet model.Wallet) float64 {
 		return wallet.BalanceSOL
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	ataAddresses, ataAccounts, err := s.fetchATAInfo(ctx, wallets, req.DestTokenMint)
+	if err != nil {
+		return nil, err
+	}
+
+	microlamportsPerCU := uint64(math.Ceil(
+		(req.PriorityFee * 1_000_000_000 * 1_000_000) / float64(s.computeUnixLimit),
+	))
+	wallets, ataAddresses, ataAccounts, _, err = s.filterWalletsBySolReserve(ctx, wallets, ataAddresses, ataAccounts, solReserveFilter{
+		MinTransactionBudget:       req.MinTransactionsBudget,
+		CampaignBudget:             req.Budget,
+		PriorityFeeMicroLamports:   microlamportsPerCU,
+		IncludeMissingTokenATARent: true,
+		DeductReserveFromSource:    true,
+		BalanceFn: func(wallet model.Wallet) float64 {
+			return wallet.BalanceSOL
+		},
 	})
 	if err != nil {
 		return nil, err
@@ -106,11 +123,6 @@ func (s *SwapService) CreatePullUpCampaign(ctx context.Context, req *model.Targe
 	}
 
 	privateKeys, err := s.fetchPrivateKeys(ctx, userID, wallets)
-	if err != nil {
-		return nil, err
-	}
-
-	ataAddresses, ataAccounts, err := s.fetchATAInfo(ctx, wallets, req.DestTokenMint)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +140,7 @@ func (s *SwapService) CreatePullUpCampaign(ctx context.Context, req *model.Targe
 	goalPrice := CalculateGoalPrice(startedPrice, req.GoalPercentageChange, true)
 	campaignID := uuid.New()
 
-	params, err := provider.FetchPoolParams(ctx, poolResult.poolID)
+	params, err := provider.FetchPoolParams(ctx, poolResult.PoolID)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +155,7 @@ func (s *SwapService) CreatePullUpCampaign(ctx context.Context, req *model.Targe
 			continue
 		}
 
-		wSolATA, _, wErr := solana.FindAssociatedTokenAddress(walletKey, solana.WrappedSol)
+		wSolATA, _, wErr := solutil.FindAssociatedTokenAddressWithProgram(walletKey, solana.WrappedSol, solana.TokenProgramID)
 		if wErr != nil {
 			errs[i] = apperrors.Internal("cant find ata address", wErr)
 			continue
@@ -155,12 +167,12 @@ func (s *SwapService) CreatePullUpCampaign(ctx context.Context, req *model.Targe
 			MinTransactionsAmount: req.MinTransactionsBudget,
 			MaxTransactionsAmount: req.MaxTransactionsBudget,
 			Slippage:              percentageToBasicPoints(req.Slippage),
-			PoolID:                poolResult.poolID,
-			PoolProgramID:         poolResult.poolProgramID,
+			PoolID:                poolResult.PoolID,
+			PoolProgramID:         poolResult.PoolProgramID,
 			SourceAddress:         wSolATA,
 			SourceTokenMint:       solana.WrappedSol,
-			SourceTokenDecimals:   poolResult.sourceTokenDecimals,
-			DestTokenDecimals:     poolResult.destTokenDecimals,
+			SourceTokenDecimals:   poolResult.SourceTokenDecimals,
+			DestTokenDecimals:     poolResult.DestTokenDecimals,
 			DestTokenMint:         req.DestTokenMint,
 			DestAddress:           ataAddresses[i],
 			PrivateKey:            privateKeys[i],
@@ -169,6 +181,7 @@ func (s *SwapService) CreatePullUpCampaign(ctx context.Context, req *model.Targe
 			ATAKeyCreated:         ataAccounts[i] != nil,
 			PoolParams:            params,
 			UsingJito:             req.UsingJito,
+			PriorityFeeMLP:        microlamportsPerCU,
 		}
 	}
 
@@ -182,7 +195,7 @@ func (s *SwapService) CreatePullUpCampaign(ctx context.Context, req *model.Targe
 		UserID:                     userID,
 		ProviderID:                 uint64(req.ProviderID),
 		ProjectID:                  req.ProjectID,
-		PoolID:                     poolResult.poolID.String(),
+		PoolID:                     poolResult.PoolID.String(),
 		TokenMintFrom:              solana.WrappedSol.String(),
 		TokenMintTo:                req.DestTokenMint.String(),
 		Budget:                     req.Budget,
@@ -200,17 +213,21 @@ func (s *SwapService) CreatePullUpCampaign(ctx context.Context, req *model.Targe
 		UsingJito:                  req.UsingJito,
 		CreatedAt:                  time.Now().UTC(),
 		UpdatedAt:                  time.Now().UTC(),
+		PriorityFee:                req.PriorityFee,
 	}
 
 	if err := s.swapCampaignRepository.Create(ctx, &campaign); err != nil {
 		return nil, apperrors.Internal("failed to create swap campaign", err)
 	}
 
-	budget := &atomic.Pointer[big.Int]{}
+	/* budget := &atomic.Pointer[big.Int]{}
 
-	budgetInAtomicUnits := solanarpc.ToAtomicUnit(req.Budget, poolResult.sourceTokenDecimals)
+	budgetInAtomicUnits := solanarpc.ToAtomicUnit(req.Budget, poolResult.SourceTokenDecimals)
 
-	budget.Store(new(big.Int).SetUint64(budgetInAtomicUnits))
+	budget.Store(new(big.Int).SetUint64(budgetInAtomicUnits)) */
+
+	budgetAtomic := solanarpc.ToAtomicUnit(req.Budget, poolResult.SourceTokenDecimals)
+	budget := swapbudget.NewSwapBudget(new(big.Int).SetUint64(budgetAtomic))
 
 	err = s.manager.AddTarget(ctx,
 		req.MinTimeBetweenTransactions,
@@ -242,24 +259,42 @@ func (s *SwapService) CreatePullDownCampaign(ctx context.Context, req *model.Tar
 		req.Budget = totalBalance * (req.BudgetPercent / 100)
 	}
 
-	wallets, _, err = filterWalletsForCampaign(wallets, req.MinTransactionsBudget, req.Budget, func(wallet model.Wallet) float64 {
+	wallets, _, err = s.filterWalletsForCampaign(wallets, req.MinTransactionsBudget, req.Budget, func(wallet model.Wallet) float64 {
 		return wallet.BalanceToken
 	})
 	if err != nil {
 		return nil, err
 	}
 
+	ataAddresses, ataAccounts, err := s.fetchATAInfo(ctx, wallets, req.SourceTokenMint)
+	if err != nil {
+		return nil, err
+	}
+
+	microlamportsPerCU := uint64(math.Ceil(
+		(req.PriorityFee * 1_000_000_000 * 1_000_000) / float64(s.computeUnixLimit),
+	))
+	wallets, ataAddresses, ataAccounts, _, err = s.filterWalletsBySolReserve(ctx, wallets, ataAddresses, ataAccounts, solReserveFilter{
+		MinTransactionBudget:       req.MinTransactionsBudget,
+		CampaignBudget:             req.Budget,
+		PriorityFeeMicroLamports:   microlamportsPerCU,
+		IncludeMissingTokenATARent: false,
+		DeductReserveFromSource:    false,
+		BalanceFn: func(wallet model.Wallet) float64 {
+			return wallet.BalanceToken
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// return nil, nil
 	parallelTransactionsAmount := req.ParallelTransactionsAmount
 	if parallelTransactionsAmount > len(wallets) {
 		parallelTransactionsAmount = len(wallets)
 	}
 
 	privateKeys, err := s.fetchPrivateKeys(ctx, userID, wallets)
-	if err != nil {
-		return nil, err
-	}
-
-	ataAddresses, ataAccounts, err := s.fetchATAInfo(ctx, wallets, req.SourceTokenMint)
 	if err != nil {
 		return nil, err
 	}
@@ -276,7 +311,7 @@ func (s *SwapService) CreatePullDownCampaign(ctx context.Context, req *model.Tar
 	goalPrice := CalculateGoalPrice(startedPrice, req.GoalPercentageChange, false)
 	campaignID := uuid.New()
 
-	params, err := provider.FetchPoolParams(ctx, poolResult.poolID)
+	params, err := provider.FetchPoolParams(ctx, poolResult.PoolID)
 	if err != nil {
 		return nil, err
 	}
@@ -291,7 +326,7 @@ func (s *SwapService) CreatePullDownCampaign(ctx context.Context, req *model.Tar
 			continue
 		}
 
-		wSolATA, _, wErr := solana.FindAssociatedTokenAddress(walletKey, solana.WrappedSol)
+		wSolATA, _, wErr := solutil.FindAssociatedTokenAddressWithProgram(walletKey, solana.WrappedSol, solana.TokenProgramID)
 		if wErr != nil {
 			errs[i] = apperrors.Internal("cant find ata address", wErr)
 			continue
@@ -303,8 +338,8 @@ func (s *SwapService) CreatePullDownCampaign(ctx context.Context, req *model.Tar
 			MinTransactionsAmount: req.MinTransactionsBudget,
 			MaxTransactionsAmount: req.MaxTransactionsBudget,
 			Slippage:              percentageToBasicPoints(req.Slippage),
-			PoolID:                poolResult.poolID,
-			PoolProgramID:         poolResult.poolProgramID,
+			PoolID:                poolResult.PoolID,
+			PoolProgramID:         poolResult.PoolProgramID,
 			SourceAddress:         ataAddresses[i],
 			SourceTokenMint:       req.SourceTokenMint,
 			DestTokenMint:         solana.WrappedSol,
@@ -314,9 +349,10 @@ func (s *SwapService) CreatePullDownCampaign(ctx context.Context, req *model.Tar
 			TransactionSpeed:      req.TransactionSpeed,
 			ATAKeyCreated:         ataAccounts[i] != nil,
 			PoolParams:            params,
-			SourceTokenDecimals:   poolResult.sourceTokenDecimals,
-			DestTokenDecimals:     poolResult.destTokenDecimals,
+			SourceTokenDecimals:   poolResult.SourceTokenDecimals,
+			DestTokenDecimals:     poolResult.DestTokenDecimals,
 			UsingJito:             req.UsingJito,
+			PriorityFeeMLP:        microlamportsPerCU,
 		}
 	}
 
@@ -330,7 +366,7 @@ func (s *SwapService) CreatePullDownCampaign(ctx context.Context, req *model.Tar
 		UserID:                     userID,
 		ProviderID:                 uint64(req.ProviderID),
 		ProjectID:                  req.ProjectID,
-		PoolID:                     poolResult.poolID.String(),
+		PoolID:                     poolResult.PoolID.String(),
 		TokenMintFrom:              req.SourceTokenMint.String(),
 		TokenMintTo:                solana.WrappedSol.String(),
 		Budget:                     req.Budget,
@@ -348,17 +384,19 @@ func (s *SwapService) CreatePullDownCampaign(ctx context.Context, req *model.Tar
 		UsingJito:                  req.UsingJito,
 		CreatedAt:                  time.Now().UTC(),
 		UpdatedAt:                  time.Now().UTC(),
+		PriorityFee:                req.PriorityFee,
 	}
 
 	if err = s.swapCampaignRepository.Create(ctx, &campaign); err != nil {
 		return nil, apperrors.Internal("failed to create swap campaign", err)
 	}
 
-	budget := &atomic.Pointer[big.Int]{}
+	// budget := &atomic.Pointer[big.Int]{}
 
-	budgetInAtomicUnits := solanarpc.ToAtomicUnit(req.Budget, poolResult.sourceTokenDecimals)
+	budgetAtomic := solanarpc.ToAtomicUnit(req.Budget, poolResult.SourceTokenDecimals)
+	budget := swapbudget.NewSwapBudget(new(big.Int).SetUint64(budgetAtomic))
 
-	budget.Store(new(big.Int).SetUint64(budgetInAtomicUnits))
+	// budget.Store(new(big.Int).SetUint64(budgetInAtomicUnits))
 
 	err = s.manager.AddTarget(ctx,
 		req.MinTimeBetweenTransactions,
@@ -427,14 +465,42 @@ func (s *SwapService) EstimateSwapCost(ctx context.Context, req *model.EstimateP
 
 	tipSOL := jitoTip*float64(len(wallets)) + pool.FeeRate*req.Budget
 
+	accounts := []string{
+		wallets[0].PublicKey,
+		pool.ProgramID,
+		pool.ID,
+		mintToCheck.String(),
+	}
+
+	feeLevels, err := s.heliusClient.GetPriorityFeeEstimate(accounts)
+	if err != nil {
+		return nil, apperrors.Internal("failed to fetch priority fee estimate", err)
+	}
+
+	lowTotalSOL := calculatePriorityFee(feeLevels.Medium, s.computeUnixLimit)
+	mediumTotalSOL := calculatePriorityFee(feeLevels.High, s.computeUnixLimit)
+	veryHighTotalSOL := calculatePriorityFee(feeLevels.VeryHigh, s.computeUnixLimit)
+
 	return &model.TargetPullEstimateResponse{
 		BudgetSOL: req.Budget,
 		TipSOL:    tipSOL,
 		RentSOl:   ataRentSol,
+		PriorityFees: model.PriorityFees{
+			Low:    lowTotalSOL,
+			Medium: mediumTotalSOL,
+			High:   veryHighTotalSOL,
+		},
 	}, nil
 }
 
-func (s *SwapService) getDEXProvider(providerID model.SwapProviderID) (dexProvider, error) {
+func calculatePriorityFee(lamportsPerCU float64, cuLimit uint32) float64 {
+	totalMicroLamports := uint64(lamportsPerCU) * uint64(cuLimit)
+	totalLamports := totalMicroLamports / 1_000_000
+	totalSOL := float64(totalLamports) / 1_000_000_000
+	return totalSOL
+}
+
+func (s *SwapService) getDEXProvider(providerID model.SwapProviderID) (model.DexProvider, error) {
 	provider, ok := s.dexProviders[providerID]
 	if !ok {
 		return nil, apperrors.BadRequest("unsupported provider id")
@@ -445,11 +511,16 @@ func (s *SwapService) getDEXProvider(providerID model.SwapProviderID) (dexProvid
 
 func (s *SwapService) fetchFundedWallets(ctx context.Context, projectID, userID uint64, minWallets int, mint solana.PublicKey) ([]model.Wallet, float64, error) {
 	decimals := solana.SolDecimals
+	tokenProgram := solana.TokenProgramID
 
 	if !solutil.IsSOLLikeMint(mint) {
 		info, err := s.solanaRPC.GetAccountInfo(ctx, mint)
 		if err != nil {
 			return nil, 0, err
+		}
+
+		if info == nil || info.Value == nil {
+			return nil, 0, apperrors.BadRequest("mint not found", nil)
 		}
 
 		data := info.GetBinary()
@@ -472,6 +543,7 @@ func (s *SwapService) fetchFundedWallets(ctx context.Context, projectID, userID 
 		}
 
 		decimals = tokenMint.Decimals
+		tokenProgram = info.Value.Owner
 	}
 
 	project, err := s.projectRepository.FetchProjectWithWalletsByID(ctx, projectID, userID)
@@ -496,7 +568,7 @@ func (s *SwapService) fetchFundedWallets(ctx context.Context, projectID, userID 
 		if solutil.IsSOLLikeMint(mint) {
 			pubKeys[i] = pk
 		} else {
-			address, _, err := solana.FindAssociatedTokenAddress(pk, mint)
+			address, _, err := solutil.FindAssociatedTokenAddressWithProgram(pk, mint, tokenProgram)
 			if err != nil {
 				return nil, 0, err
 			}
@@ -600,13 +672,25 @@ func (s *SwapService) fetchPrivateKeys(ctx context.Context, userID uint64, walle
 }
 
 func (s *SwapService) fetchATAInfo(ctx context.Context, wallets []model.Wallet, mint solana.PublicKey) ([]solana.PublicKey, []*rpc.Account, error) {
+	tokenProgram := solana.TokenProgramID
+	if !solutil.IsSOLLikeMint(mint) {
+		info, err := s.solanaRPC.GetAccountInfo(ctx, mint)
+		if err != nil {
+			return nil, nil, apperrors.Internal("failed to fetch mint account", err)
+		}
+		if info == nil || info.Value == nil || info.Value.Data == nil {
+			return nil, nil, apperrors.BadRequest("mint not found", nil)
+		}
+		tokenProgram = info.Value.Owner
+	}
+
 	addresses := make([]solana.PublicKey, len(wallets))
 	for i, w := range wallets {
 		owner, err := solana.PublicKeyFromBase58(w.PublicKey)
 		if err != nil {
 			return nil, nil, apperrors.Internal("invalid wallet address", err)
 		}
-		addr, _, err := solana.FindAssociatedTokenAddress(owner, mint)
+		addr, _, err := solutil.FindAssociatedTokenAddressWithProgram(owner, mint, tokenProgram)
 		if err != nil {
 			return nil, nil, apperrors.Internal("failed to get ata address", err)
 		}
@@ -626,7 +710,110 @@ func (s *SwapService) fetchATAInfo(ctx context.Context, wallets []model.Wallet, 
 	return addresses, accounts, nil
 }
 
-func filterWalletsForCampaign(
+type solReserveFilter struct {
+	MinTransactionBudget       float64
+	CampaignBudget             float64
+	PriorityFeeMicroLamports   uint64
+	IncludeMissingTokenATARent bool
+	DeductReserveFromSource    bool
+	BalanceFn                  func(model.Wallet) float64
+}
+
+func (s *SwapService) filterWalletsBySolReserve(
+	ctx context.Context,
+	wallets []model.Wallet,
+	ataAddresses []solana.PublicKey,
+	ataAccounts []*rpc.Account,
+	filter solReserveFilter,
+) ([]model.Wallet, []solana.PublicKey, []*rpc.Account, float64, error) {
+	if len(wallets) != len(ataAddresses) || len(wallets) != len(ataAccounts) {
+		return nil, nil, nil, 0, apperrors.Internal("wallet and ATA info length mismatch")
+	}
+
+	owners := make([]solana.PublicKey, len(wallets))
+	for i, wallet := range wallets {
+		owner, err := solana.PublicKeyFromBase58(wallet.PublicKey)
+		if err != nil {
+			return nil, nil, nil, 0, apperrors.Internal("invalid wallet address", err)
+		}
+		owners[i] = owner
+	}
+
+	solBalances, err := s.solanaRPC.GetMulltipyWalletBalance(ctx, owners)
+	if err != nil {
+		return nil, nil, nil, 0, apperrors.Internal("failed to get wallet SOL balances", err)
+	}
+	if len(solBalances) != len(wallets) {
+		return nil, nil, nil, 0, apperrors.Internal("wallet SOL balance length mismatch")
+	}
+
+	ataRentLamports, err := s.solanaRPC.GetATARentExemption(ctx)
+	if err != nil {
+		return nil, nil, nil, 0, apperrors.Internal("failed to get ata rent exemption", err)
+	}
+
+	eligibleWallets := make([]model.Wallet, 0, len(wallets))
+	eligibleATAAddresses := make([]solana.PublicKey, 0, len(ataAddresses))
+	eligibleATAAccounts := make([]*rpc.Account, 0, len(ataAccounts))
+	totalEligibleBalance := 0.0
+
+	for i, wallet := range wallets {
+		createTokenATA := filter.IncludeMissingTokenATARent && ataAccounts[i] == nil
+		reserveLamports := common.SolPayerReserveLamports(
+			createTokenATA,
+			ataRentLamports,
+			s.computeUnixLimit,
+			filter.PriorityFeeMicroLamports,
+		)
+		solBalanceLamports := solanarpc.SOLToLamports(solBalances[i])
+		if solBalanceLamports <= reserveLamports {
+			s.logger.Info(
+				"wallet filtered by insufficient SOL reserve",
+				zap.String("wallet", wallet.PublicKey),
+				zap.Uint64("sol_balance_lamports", solBalanceLamports),
+				zap.Uint64("required_reserve_lamports", reserveLamports),
+				zap.Bool("create_token_ata", createTokenATA),
+			)
+			continue
+		}
+
+		wallet.BalanceSOL = solBalances[i]
+		balance := filter.BalanceFn(wallet)
+		if filter.DeductReserveFromSource {
+			balance = solanarpc.FromAtomicUnit(solBalanceLamports-reserveLamports, solana.SolDecimals)
+			wallet.BalanceSOL = balance
+		}
+
+		if balance < filter.MinTransactionBudget {
+			s.logger.Info(
+				"wallet filtered by insufficient spendable balance",
+				zap.String("wallet", wallet.PublicKey),
+				zap.Float64("spendable_balance", balance),
+				zap.Float64("min_transaction_budget", filter.MinTransactionBudget),
+				zap.Uint64("required_reserve_lamports", reserveLamports),
+				zap.Bool("reserve_deducted_from_source", filter.DeductReserveFromSource),
+			)
+			continue
+		}
+
+		eligibleWallets = append(eligibleWallets, wallet)
+		eligibleATAAddresses = append(eligibleATAAddresses, ataAddresses[i])
+		eligibleATAAccounts = append(eligibleATAAccounts, ataAccounts[i])
+		totalEligibleBalance += balance
+	}
+
+	if len(eligibleWallets) == 0 {
+		return nil, nil, nil, 0, apperrors.BadRequest("no eligible wallets with enough SOL for rent and fees", nil)
+	}
+
+	if totalEligibleBalance < filter.CampaignBudget {
+		return nil, nil, nil, 0, apperrors.BadRequest("not enough funds on eligible wallets after SOL reserve", nil)
+	}
+
+	return eligibleWallets, eligibleATAAddresses, eligibleATAAccounts, totalEligibleBalance, nil
+}
+
+func (s *SwapService) filterWalletsForCampaign(
 	wallets []model.Wallet,
 	minTransactionBudget, campaignBudget float64,
 	balanceFn func(model.Wallet) float64,
@@ -637,12 +824,28 @@ func filterWalletsForCampaign(
 	for _, wallet := range wallets {
 		balance := balanceFn(wallet)
 		if balance < minTransactionBudget {
+			s.logger.Info(
+				"wallet filtered by insufficient campaign balance",
+				zap.String("wallet", wallet.PublicKey),
+				zap.Float64("balance", balance),
+				zap.Float64("min_transaction_budget", minTransactionBudget),
+				zap.Float64("campaign_budget", campaignBudget),
+			)
 			continue
 		}
 
 		eligibleWallets = append(eligibleWallets, wallet)
 		totalEligibleBalance += balance
 	}
+
+	s.logger.Info(
+		"wallet campaign balance filter completed",
+		zap.Int("total_wallets", len(wallets)),
+		zap.Int("eligible_wallets", len(eligibleWallets)),
+		zap.Float64("total_eligible_balance", totalEligibleBalance),
+		zap.Float64("campaign_budget", campaignBudget),
+		zap.Float64("min_transaction_budget", minTransactionBudget),
+	)
 
 	if len(eligibleWallets) == 0 {
 		return nil, 0, apperrors.BadRequest("no eligible wallets found for campaign start", nil)
@@ -653,41 +856,4 @@ func filterWalletsForCampaign(
 	}
 
 	return eligibleWallets, totalEligibleBalance, nil
-}
-
-func fetchRaydiumPoolParams(ctx context.Context, pool *rpc.GetAccountInfoResult, poolID solana.PublicKey) (*model.PoolParams, error) {
-	var poolParams model.PoolParams
-
-	if ctx.Err() != nil {
-		return nil, ctx.Err()
-	}
-
-	switch pool.Value.Owner {
-	case raydiumamm.ProgramID:
-		ammInfo, aErr := raydiumamm.UnmarshalAmmInfo(pool.GetBinary())
-		if aErr != nil {
-			return nil, aErr
-		}
-
-		poolParams = model.PoolParams{
-			PoolID:           poolID,
-			InputTokenVault:  ammInfo.TokenCoin,
-			OutputTokenVault: ammInfo.TokenPc,
-			OpenOrders:       ammInfo.OpenOrders,
-			Market:           ammInfo.Market,
-		}
-	case raydiumcpswap.ProgramID:
-		cpmmInfo, cErr := raydiumcpswap.ParseAccount_PoolState(pool.GetBinary())
-		if cErr != nil {
-			return nil, cErr
-		}
-		poolParams = model.PoolParams{
-			PoolID:           poolID,
-			InputTokenVault:  cpmmInfo.Token0Vault,
-			OutputTokenVault: cpmmInfo.Token1Vault,
-			AmmConfig:        cpmmInfo.AmmConfig,
-		}
-	}
-
-	return &poolParams, nil
 }

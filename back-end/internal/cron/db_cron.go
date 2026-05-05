@@ -20,8 +20,7 @@ import (
 
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
-	"github.com/google/uuid"
-	rcron "github.com/robfig/cron/v3"
+rcron "github.com/robfig/cron/v3"
 	"github.com/uptrace/bun"
 	"go.uber.org/zap"
 )
@@ -538,21 +537,6 @@ func (c *DBCron) processPendingTransactions() error {
 			}
 		}
 
-		campaignIDs := make(map[uuid.UUID]struct{}, len(transactionsToUpdate))
-		for _, transaction := range transactionsToUpdate {
-			campaignIDs[transaction.CampaignID] = struct{}{}
-		}
-
-		for campaignID := range campaignIDs {
-			updated, updateErr := c.SwapCampaignRepository.UpdateDoneIfNoPendingTransactions(ctx, campaignID)
-			if updateErr != nil {
-				c.Log.Error("failed to finalize campaign status", zap.String("campaign_id", campaignID.String()), zap.Error(updateErr))
-				continue
-			}
-			if updated {
-				c.Log.Info("campaign marked as done after pending transactions finished", zap.String("campaign_id", campaignID.String()))
-			}
-		}
 	}
 
 	if len(depositsToUpdate) > 0 {

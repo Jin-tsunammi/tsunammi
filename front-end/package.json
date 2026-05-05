@@ -9,7 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@metaplex-foundation/mpl-token-metadata": "^2.13.0",
+    "@metaplex-foundation/mpl-token-metadata": "^3.4.0",
+    "@metaplex-foundation/umi": "^1.5.1",
+    "@metaplex-foundation/umi-bundle-defaults": "^1.5.1",
     "@reown/appkit": "^1.8.17",
     "@reown/appkit-adapter-solana": "^1.8.17",
     "@solana/spl-token": "^0.4.14",

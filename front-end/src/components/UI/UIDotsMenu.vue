@@ -19,7 +19,7 @@
               v-for="(action) in group"
               :key="action?.label"
               class="ui-dots-menu__action paragraph-small regular"
-              :class="action.action"
+              :class="normilizeActionClass(action.action)"
               @click.stop="handleOptionSelect(action.action)"
             >
               <div class="ui-dots-menu__action_icon">
@@ -56,6 +56,14 @@ const handleOptionSelect = (action) => {
 }
 const toggleMenu = () => {
   isMenuOpen.value = !isMenuOpen.value;
+}
+
+const normilizeActionClass = (action) => {
+  if (String(action).includes('delete')) {
+    return 'delete'
+  } else {
+    return action;
+  }
 }
 </script>
 <style scoped lang="scss">

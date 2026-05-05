@@ -33,7 +33,7 @@
             <template #status="{ item }">
               <div :class="['table__status paragraph-small regular', campaignStatus(item)]">
                 <div class="indicator"></div>
-                <span>{{ campaignStatus(item) }}</span>
+                <span>{{ normilizeCampaignStatus(item.status) }}</span>
               </div>
             </template>
             <template #type="{ item }">
@@ -47,7 +47,7 @@
             <template #budget="{ item }">
               <div class="table__price monospaced-small">
                 <span class="price">{{ toDynamicFix(item.budget) }}</span>
-                <span class="token grey">{{ token(item, true)?.symbol || '' }}</span>
+                <span class="token grey">{{ String(token(item, true)?.symbol || '').toUpperCase() }}</span>
               </div>
             </template>
             <template #goal_percent_change="{ item }">
@@ -55,14 +55,14 @@
             </template>
             <template #goal_price="{ item }">
               <div class="table__price  monospaced-small">
-                <span class="price">{{ toDynamicFix(item.goal_price) }}</span>
-                <span class="token grey">{{ token(item)?.symbol || '' }}</span>
+                <span class="price">{{ formatSmallNumbers(toDynamicFix(item.goal_price, 6)) }}</span>
+                <span class="token grey">{{ 'SOL' }}</span>
               </div>
             </template>
             <template #current_price="{ item }">
               <div class="table__price  monospaced-small">
-                <span class="price">{{ toDynamicFix(item.current_price) }}</span>
-                <span class="token grey">{{ token(item)?.symbol || '' }}</span>
+                <span class="price">{{ formatSmallNumbers(toDynamicFix(item.goal_price, 6)) }}</span>
+                <span class="token grey">{{ 'SOL' }}</span>
               </div>
             </template>
             <template #created_at="{ item }">
@@ -85,7 +85,14 @@
 </template>
 <script setup>
 import PageLoading from "../../components/UI/PageLoading.vue";
-import {errorToast, formatDate, formatWalletAddress, toDynamicFix} from "../../helpers/index.js";
+import {
+  errorToast,
+  formatDate,
+  formatSmallNumbers,
+  formatWalletAddress,
+  normilizeCampaignStatus,
+  toDynamicFix
+} from "../../helpers/index.js";
 import SVGFolderOpenDot from "../../components/SVG/SVGFolderOpenDot.vue";
 import MobileAdaptsNotification from "../../components/UI/MobileAdaptsNotification.vue";
 import UITable from "../../components/UI/UITable.vue";

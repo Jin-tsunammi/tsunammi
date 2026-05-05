@@ -11,6 +11,7 @@
             :tokens="tokensList"
             :projects="projects"
             :errors="errors"
+            :is-page-loading="isPageLoading"
             @handle-error-clear="handleGeneralErrors"
           />
           <Targets
@@ -20,6 +21,8 @@
             :errors="errors"
             :is-edit-mode="isEditMod"
             :estimate-error="estimateError"
+            :solana-price-u-s-d="solanaPriceUSD"
+            :is-page-loading="isPageLoading"
             @handle-error-clear="handleTargetErrorClear"
             @clear-estimate-error="clearEstimateError"
             @set-estimate-error="setEstimateError"
@@ -76,20 +79,11 @@
           <div class="smart-buy-back__all-campaigns">
             <UISectionTitleWithBorder>All campaign status</UISectionTitleWithBorder>
             <div class="smart-buy-back__desktop_campaigns">
-              <UIEmptyState
-                v-if="!smartCampaignStore.allSmartCampaigns?.length"
-                :icon="SVGMonitorDot"
-                :main_text="'No active campaigns'"
-                :add_text="'Active campaigns will show here'"
-              />
-              <div class="list" v-else>
-                <ProfileCampaign
+              <div class="list">
+                <CompletedCampaign
                   v-for="campaign in smartCampaignStore.allSmartCampaigns"
                   :key="campaign.id"
                   :campaign="campaign"
-                  @handle-add-budget="openModal({type: 'add-budget', campaign})"
-                  @handle-stop="openModal({type: 'stop-campaign', campaign})"
-                  @handle-edit="openCampaign(campaign)"
                 />
               </div>
             </div>
@@ -109,13 +103,6 @@
           v-model="modalAddNewBudget"
         />
         <ConfirmationModal
-          v-if="modalsStore.modalData.type === 'budget-confirmation'"
-          :main-text="`You’re adding ${modalAddNewBudget} ${tokensStore.solTokensData?.[modalsStore.modalData.item?.token_mint_from]?.symbol || ''} to this campaign. This action can’t be undone.`"
-          confirmation-btn-style="primary"
-          confirmation-btn-text="Confirm"
-          @handle-confirmation="handleCampaignChangeBudget"
-        />
-        <ConfirmationModal
           class="modal-stop-campaign"
           v-if="modalsStore.modalData.type === 'stop-campaign'"
           :is-custom-content="true"
@@ -131,8 +118,8 @@
 <script setup>
 import {computed, onBeforeUnmount, onMounted, ref, watch} from "vue";
 import {
-CreateSmartBuyBack,
-  GetAllProjectsNameOnly,
+  CreateSmartBuyBack, CreateSmartBuyBackTarget,
+  GetAllProjectsNameOnly, StopSmartBuyBackTarget, UpdateSmartBuyBackTarget,
 } from "../../api/api.js";
 import UIButton from "../../components/UI/UIButton.vue";
 import UIAlert from "../../components/UI/UIAlert.vue";
@@ -158,6 +145,9 @@ import {useHeaderRefresh} from "../../composable/useHeaderRefresh.js";
 import Targets from "../../components/MarketMakingPages/SmartBuyBack/Targets.vue";
 import SmartBuyBackTop from "../../components/MarketMakingPages/SmartBuyBack/SmartBuyBackTop.vue";
 import {useSmartCampaignsStore} from "../../store/smartCampaignsStore.js";
+import CompletedCampaign from "../../components/MarketMakingPages/CompletedCampaign.vue";
+import axios from "axios";
+import {SOLANA_MINT} from "../../constants/const.js";
 
 const DEFAULT_TARGET_ERROR = {
   id: 1,
@@ -186,6 +176,7 @@ const projects = ref([]);
 const searchToken = ref('');
 const estimateError = ref('');
 const isPageLoading = ref(true)
+const solanaPriceUSD = ref(null);
 let campaignsInterval = null
 const selectedDex = ref({label: 'Raydium', val: 'raydium'});
 const tokensList = ref([]);
@@ -212,12 +203,9 @@ const startButtonText = computed(() => {
   }
 })
 const activeCampaign = computed(() => {
-  if (smartCampaignStore.allSmartCampaigns.length) {
-    return smartCampaignStore.allSmartCampaigns.filter(e => e.status.toLowerCase() === 'active');
-  } else {
-    return []
-  }
+  return smartCampaignStore.activeSmartCampaigns;
 })
+
 const getProjects = async () => {
   try {
     const resp = await GetAllProjectsNameOnly();
@@ -264,29 +252,8 @@ const debouncedSearch = debounce((val) => {
   }
 }, 400)
 
-const getProject = async () => {
-  let resp = null;
-  try {
-
-  } catch (e) {
-    errorToast(e.response.data);
-    return resp;
-  }
-}
-
 const openModal = async ({type, campaign = null}) => {
   modalsStore.modalData.type = type;
-
-  if (type === 'add-budget') {
-    modalsStore.modalData.title = 'Add budget to campaign';
-    const project = await getProject(campaign);
-
-    if (!project) {
-      modalsStore.modalData.type = '';
-      modalsStore.modalData.title = '';
-      return;
-    }
-  }
 
   if (type === 'stop-campaign') {
     modalsStore.modalData.title = 'Stop active campaign?'
@@ -311,6 +278,12 @@ const handlePageRefresh = async (isRefreshing = false, isAuth = false) => {
     clearInterval(campaignsInterval)
   }
 
+  const solanaPrice = await tokensStore.getTokenPrice(SOLANA_MINT);
+
+  if (solanaPrice?.[SOLANA_MINT]) {
+    solanaPriceUSD.value = solanaPrice[SOLANA_MINT].usdPrice || 0;
+  }
+
   if (!userStore.isUserAuth) {
     isPageLoading.value = false;
 
@@ -318,8 +291,15 @@ const handlePageRefresh = async (isRefreshing = false, isAuth = false) => {
   }
 
   try {
+    if (isEditMod.value) {
+      await smartCampaignStore.getSmartCampaign(route.params.campaign_id);
+      const sourceToken = [{source_token_mint: smartCampaignStore.smartCampaignData.token_mint}];
+      await tokensStore.updateSolTokensData(sourceToken, 'source_token_mint');
+    } else {
+      await smartCampaignStore.getAllActiveSmartCampaigns();
+      await smartCampaignStore.getAllSmartCampaigns();
+    }
     await getProjects();
-    await smartCampaignStore.getAllSmartCampaigns();
 
     if (isRefreshing) {
       toastStore.success({text: "Page is refreshed"})
@@ -334,18 +314,17 @@ const handlePageRefresh = async (isRefreshing = false, isAuth = false) => {
 const handleStopCampaign = async () => {
   try {
     await smartCampaignStore.handleStopSmartCampaign(modalsStore.modalData.item?.id);
+    await smartCampaignStore.getAllActiveSmartCampaigns();
   } finally {
     modalsStore.closeModal();
   }
 }
 
 
-const openCampaign = async () => {
+const openCampaign = (campaign) => {
+  if (!campaign) return;
 
-}
-
-const handleCampaignChangeBudget = async () => {
-
+  router.push({name: route.name, params: {campaign_id: campaign.id}});
 }
 
 const handleGeneralErrors = (field) => {
@@ -492,6 +471,76 @@ const validateCampaignBeforeStart = () => {
   });
 }
 
+const SMART_BUYBACK_TARGET_COMPARE_KEYS = [
+  'budget',
+  'max_time_between_transactions',
+  'max_transaction_amount',
+  'min_time_between_transactions',
+  'min_transaction_amount',
+  'parallel_transactions_amount',
+  'priority_fee',
+  'slippage',
+  'start_at',
+  'target_price',
+  'transaction_speed',
+  'type',
+  'using_jito',
+];
+
+const normalizeSmartBuyBackStartAtSeconds = (value) => {
+  if (value === null || value === undefined || value === '') return 0;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const ms = Date.parse(value);
+
+  return Number.isNaN(ms) ? 0 : Number((ms / 1000).toFixed());
+};
+
+const normalizeSmartBuyBackTargetFieldForCompare = (key, raw) => {
+  if (key === 'start_at') return normalizeSmartBuyBackStartAtSeconds(raw);
+  if (['budget', 'max_transaction_amount', 'min_transaction_amount', 'target_price', 'priority_fee'].includes(key)) {
+    return String(Number(raw) || 0);
+  }
+  if (key === 'slippage') return Number(raw);
+  if (['max_time_between_transactions', 'min_time_between_transactions', 'parallel_transactions_amount'].includes(key)) {
+    return Number(raw);
+  }
+  if (key === 'using_jito') return Boolean(raw);
+
+  return raw;
+};
+
+const isSmartBuyBackTargetChanged = (oldTarget, newTarget) => {
+  return SMART_BUYBACK_TARGET_COMPARE_KEYS.some(
+    (key) =>
+      normalizeSmartBuyBackTargetFieldForCompare(key, oldTarget?.[key])
+      !== normalizeSmartBuyBackTargetFieldForCompare(key, newTarget?.[key])
+  );
+};
+
+const handleTargetsCheck = async(newCampaign) => {
+  if (!newCampaign) return;
+
+  for (const oldTarget of smartCampaignStore.smartCampaignDataBeforeChange.targets) {
+    const newTarget = newCampaign.targets.find((t) => t.id === oldTarget.id);
+
+    if (newTarget) {
+      if (isSmartBuyBackTargetChanged(oldTarget, newTarget)) {
+        console.log(newTarget)
+        await UpdateSmartBuyBackTarget({id: newCampaign.id, targetID: newTarget.id, data: newTarget});
+      }
+    } else {
+      await StopSmartBuyBackTarget({id: newCampaign.id, targetID: oldTarget.id});
+    }
+  }
+
+  for (const newTargetId of smartCampaignStore.currentTargetIds) {
+    const newTarget = newCampaign.targets.find((t) => t.id === newTargetId);
+
+    if (!smartCampaignStore.oldTargetIds.includes(newTargetId) && newTarget) {
+      await CreateSmartBuyBackTarget(newCampaign.id, newTarget);
+    }
+  }
+}
 const runStartCampaign = async() => {
   if (userStore.isOpenLoginModal()) return;
 
@@ -516,11 +565,14 @@ const runStartCampaign = async() => {
     isChangesSaving.value = true;
 
     if (isEditMod.value) {
+      await handleTargetsCheck(campaign);
 
+      toastStore.success({text: 'Campaign has been updated.'});
     } else {
       await CreateSmartBuyBack(campaign);
       smartCampaignStore.clearStore();
 
+      await smartCampaignStore.getAllActiveSmartCampaigns();
       await smartCampaignStore.getAllSmartCampaigns();
       toastStore.success({text: 'Campaign has been created.'});
     }
@@ -591,6 +643,7 @@ onMounted(async () => {
   if (route.params?.campaign_id !== 'create' && !userStore.isUserAuth) {
     await router.push({params: {campaign_id: 'create'}});
   }
+
   await handlePageRefresh();
 });
 onBeforeUnmount(() => {

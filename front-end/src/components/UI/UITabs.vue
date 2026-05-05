@@ -1,11 +1,12 @@
 <template>
-  <div :class="['ui-tabs', size]">
+  <div :class="['ui-tabs', size, {disabled: is_disabled}]">
     <slot />
   </div>
 </template>
 <script setup>
 defineProps({
   size: {type: String, default: 'regular'}, //regular | large | small
+  is_disabled: {type: Boolean, default: false},
 })
 </script>
 <style scoped lang="scss">
@@ -14,6 +15,14 @@ defineProps({
   align-items: center;
   background: #E5E7EB;
   gap: 3px;
+
+  &.disabled {
+    opacity: .5;
+
+    &:hover {
+      cursor: not-allowed;
+    }
+  }
 
   &.regular {
     height: 35px;

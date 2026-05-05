@@ -11,8 +11,9 @@
         <div class="avatar">
           <DefaultAvatar />
         </div>
-        <span class="heading-3">{{projectStore.selectedProject?.name || ''}}</span>
-        <div class="controls">
+        <span v-if="!isPageLoading" class="heading-3">{{projectStore.selectedProject?.name || ''}}</span>
+        <AnimatedSkeleton v-else class="project-desktop__title-skeleton" />
+        <div v-if="!isPageLoading" class="controls">
           <div class="tooltip-wrapper" @mouseenter="toggleUIKit('export')" @mouseleave="toggleUIKit('export')">
             <UIButton
               color_type="ghost"
@@ -45,7 +46,8 @@
         <div class="balances">
           <div class="balance">
             <span class="paragraph-mini regular grey">Total balance</span>
-            <span class="monospaced-small">{{formatAmount(projectStore.selectedProject?.total_balance_sol) || 0}} Sol</span>
+            <span v-if="!isPageLoading" class="monospaced-small">{{sliceNumberAfterDot(projectStore.selectedProject?.total_balance_sol) || 0}} SOL</span>
+            <AnimatedSkeleton v-else class="project-desktop__field-skeleton" />
           </div>
           <div class="balance">
             <div class="balance__tooltip">
@@ -61,26 +63,30 @@
                 <SVGAlertInfo color="#4B5563"/>
               </div>
             </div>
-            <span class="monospaced-small">{{formatAmount(projectStore.selectedProject?.rent_total) || 0}} Sol</span>
+            <span v-if="!isPageLoading" class="monospaced-small">{{sliceNumberAfterDot(projectStore.selectedProject?.rent_total) || 0}} SOL</span>
+            <AnimatedSkeleton v-else class="project-desktop__field-skeleton" />
           </div>
         </div>
         <div class="information">
           <div class="paragraph-small regular grey">
             Last sync
-            <div class="paragraph-small regular black">{{formatDate(projectStore.selectedProject?.last_sync).date}} <span class="paragraph-small regular grey">{{formatDate(projectStore.selectedProject?.last_sync).time}}</span></div>
+            <div v-if="!isPageLoading" class="paragraph-small regular black">{{formatDate(projectStore.selectedProject?.last_sync).date}} <span class="paragraph-small regular grey">{{formatDate(projectStore.selectedProject?.last_sync).time}}</span></div>
+            <AnimatedSkeleton v-else class="project-desktop__info-skeleton" />
           </div>
           <div class="paragraph-small regular grey">
             Project age
-            <span class="black">{{daysSince(projectStore.selectedProject?.created_at)}}</span>
+            <span v-if="!isPageLoading" class="black">{{daysSince(projectStore.selectedProject?.created_at)}}</span>
+            <AnimatedSkeleton v-else class="project-desktop__info-skeleton" />
           </div>
           <div class="paragraph-small regular grey">
             Wallets quantity
-            <span class="black">{{projectStore.selectedProject?.wallet_count || 0}}</span>
+            <span v-if="!isPageLoading" class="black">{{projectStore.selectedProject?.wallet_count || 0}}</span>
+            <AnimatedSkeleton v-else class="project-desktop__info-skeleton" />
           </div>
         </div>
       </div>
     </div>
-    <div v-if="!projectStore.selectedProject || !projectStore.selectedProject?.wallets?.length" class="project-desktop__empty">
+    <div v-if="!isPageLoading && (!projectStore.selectedProject || !projectStore.selectedProject?.wallets?.length)" class="project-desktop__empty">
       <SVGGlobus />
       <div class="project-desktop__empty_title paragraph-medium">No wallets inside</div>
       <p class="grey paragraph-small regular">This pool is empty. Create new wallets or import existing ones to start.</p>
@@ -100,7 +106,7 @@
     <div v-else class="project-desktop__table">
       <div class="project-desktop__table_top">
         <div class="heading-5">All wallets</div>
-        <div class="imports">
+        <div v-if="!isPageLoading" class="imports">
           <UIButton
             color_type="ghost"
             size="large"
@@ -120,7 +126,7 @@
           </UIButton>
         </div>
       </div>
-      <UITable :columns="columns" :rows="rows" :is-table-nested="true">
+      <UITable :columns="columns" :rows="isPageLoading ? skeletonRows : rows" :is-table-nested="true">
         <template #col_frozen_money="{ item }">
           <div class="table__head frozen_money">
             <div class="tooltip-wrapper" @mouseenter="toggleUIKit('table-balance')" @mouseleave="toggleUIKit('table-balance')">
@@ -137,7 +143,10 @@
           </div>
         </template>
         <template #wallets="{ item }">
-          <div class="table__wallet">
+          <div v-if="isPageLoading" class="table__wallet">
+            <AnimatedSkeleton class="project-desktop__wallet-skeleton" />
+          </div>
+          <div v-else class="table__wallet">
             <a
               :href="`${SOL_SCAN_BASE_URL}${item.public_key}`"
               target="_blank"
@@ -149,12 +158,28 @@
           </div>
         </template>
         <template #lifetime="{ item }">
-          <span class="paragraph-small regular">{{ daysSince(item.created_at) }}</span>
+          <AnimatedSkeleton v-if="isPageLoading" class="project-desktop__cell-skeleton" />
+          <span v-else class="paragraph-small regular">{{ daysSince(item.created_at) }}</span>
         </template>
         <template #balance="{ item }">
-          <div :class="['table__balance']">
-            <div class="monospaced-small" @mouseenter="openWalletAsset(item, $event)" @mouseleave="closeWalletAsset">{{ calculateTotalWalletAmount(item) }} Sol</div>
-            <div v-show="walletAssets === item.id" :class="['table__balance_tokens', { 'table__balance_tokens--above': balanceTokensAbove }]">
+          <div v-if="isPageLoading" :class="['table__balance']">
+            <AnimatedSkeleton class="project-desktop__balance-skeleton" />
+          </div>
+          <div v-else :class="['table__balance']">
+            <div
+              class="balance monospaced-small"
+              @mouseenter="openWalletAsset(item, $event)"
+              @mouseleave="scheduleCloseWalletAsset"
+            >
+              <span class="sol">{{ calculateTotalWalletAmount(item) }}</span>
+              <span v-if="item?.tokens?.length" class="assets monospaced-small grey">{{`+${item.tokens.length}`}}</span>
+            </div>
+            <div
+              v-show="walletAssets === item.id"
+              :class="['table__balance_tokens', { 'table__balance_tokens--above': balanceTokensAbove }]"
+              @mouseenter="cancelCloseWalletAsset"
+              @mouseleave="scheduleCloseWalletAsset"
+            >
               <div class="table__balance_tokens-top">
                 All assets
               </div>
@@ -168,9 +193,9 @@
                     <DefaultAvatar v-else />
                   </div>
                   <span class="symbol paragraph-small regular">{{tokensStore.solTokensData[SOLANA_MINT]?.symbol}}</span>
-                  <span class=" amount monospaced-small">{{formatTokenAmount(item.balance_sol)}} Sol</span>
+                  <span class=" amount monospaced-small">{{formatTokenAmount(item.balance_sol)}} SOL</span>
                 </li>
-                <template v-for="token in item?.tokens || []" :key="token?.token_symbol">
+                <template v-for="token in item?.tokens.sort((a, b) => b.balance_sol - a.balance_sol) || []" :key="token?.token_symbol">
                   <li
                     v-if="tokensStore.solTokensData[token?.token_symbol] && tokensStore.solTokensData[token?.token_symbol]?.symbol"
                     class="table__balance_tokens-item"
@@ -180,7 +205,7 @@
                       <DefaultAvatar v-else />
                     </div>
                     <span class="symbol paragraph-small regular">{{tokensStore.solTokensData[token.token_symbol]?.symbol}}</span>
-                    <span class=" amount monospaced-small">{{formatTokenAmount(token.balance_sol)}} Sol</span>
+                    <span class=" amount monospaced-small">{{formatTokenAmount(token.balance_sol)}} SOL</span>
                   </li>
                 </template>
               </ul>
@@ -188,10 +213,11 @@
           </div>
         </template>
         <template #frozen_money="{ item }">
-          <div class="monospaced-small">{{ formatAmount(item.rent) }} Sol</div>
+          <AnimatedSkeleton v-if="isPageLoading" class="project-desktop__cell-skeleton" />
+          <div v-else class="monospaced-small">{{ sliceNumberAfterDot(item.rent) }} SOL</div>
         </template>
         <template #actions="{item}">
-          <div class="table__actions">
+          <div v-if="!isPageLoading" class="table__actions">
             <UIDotsMenu
               :menu="walletDotsMenu"
               @handle-option-select="handleMenuTableClick($event, item)"
@@ -208,10 +234,9 @@ import SVGKey from "../../SVG/SVGKey.vue";
 import UIButton from "../../UI/UIButton.vue";
 import {
   daysSince, errorToast,
-  formatAmount,
   formatDate,
   formatWalletAddress,
-  isTokenPictureValid,
+  isTokenPictureValid, sliceNumberAfterDot,
   toDynamicFix
 } from "../../../helpers/index.js";
 import {SOL_SCAN_BASE_URL, SOLANA_MINT} from "../../../constants/const.js";
@@ -224,7 +249,7 @@ import UIDotsMenu from "../../UI/UIDotsMenu.vue";
 import SVGEdit from "../../SVG/SVGEdit.vue";
 import SVGDelete from "../../SVG/SVGDelete.vue";
 import UIToolTip from "../../UI/UIToolTip.vue";
-import {ref} from "vue";
+import {computed, ref} from "vue";
 import SVGAlertInfo from "../../SVG/SVGAlertInfo.vue";
 import SVGGitPullRequest from "../../SVG/SVGGitPullRequest.vue";
 import {useExcelExport} from "../../../composable/useExcelExport.js";
@@ -234,10 +259,12 @@ import {useTokensStore} from "../../../store/tokensStore.js";
 import {GetWalletsPrivateKeys} from "../../../api/api.js";
 import {useRoute} from "vue-router";
 import UICopyText from "../../UI/UICopyText.vue";
+import AnimatedSkeleton from "../../UI/AnimatedSkeleton.vue";
 
-defineProps({
+const props = defineProps({
   columns: {type: Array, default: []},
   rows: {type: Array, default: []},
+  isPageLoading: {type: Boolean, default: true},
 })
 
 const emits = defineEmits(['getWalletPrivateKey', 'openWalletModal']);
@@ -247,6 +274,7 @@ const tokensStore = useTokensStore();
 const {exportProjectExcel} = useExcelExport();
 const {exportPrivateKeysExcel} = usePrivateKeysExport();
 const walletAssets = ref('');
+let closeWalletAssetTimeout = null;
 const balanceTokensAbove = ref(false);
 const BALANCE_TOKENS_APPROX_HEIGHT = 200;
 const projectDotsMenu = [
@@ -254,9 +282,14 @@ const projectDotsMenu = [
   [{label: "Delete", icon: SVGDelete, action: "delete"}],
 ];
 const walletDotsMenu = [
-  [{label: "Security", icon: SVGKey, action: "secret-key"}, {label: "Map", icon: SVGGitPullRequest, action: "map"}],
+  [
+    {label: "Security", icon: SVGKey, action: "secret-key"},
+    {label: "Map", icon: SVGGitPullRequest, action: "map"},
+    {label: "Delete", icon: SVGDelete, action: "delete-wallet"},
+  ],
 ];
 const UIKitVisible = ref('');
+const skeletonRows = computed(() => Array.from({length: 8}, (_, index) => ({id: `skeleton-${index}`})));
 
 const handleMenuOptionClick = (action) => {
   if (action === 'export-keys') {
@@ -267,7 +300,8 @@ const handleMenuOptionClick = (action) => {
 }
 
 const openWalletAsset = (wallet, event) => {
-  if (!wallet) return;
+  if (!wallet || !wallet?.tokens?.length) return;
+  cancelCloseWalletAsset();
 
   walletAssets.value = wallet.id;
   if (event?.currentTarget) {
@@ -279,6 +313,7 @@ const openWalletAsset = (wallet, event) => {
 }
 
 const closeWalletAsset = () => {
+  cancelCloseWalletAsset();
   walletAssets.value = '';
 }
 
@@ -287,19 +322,35 @@ const handleExportExcel = () => {
 }
 
 const handleMenuTableClick = (action, wallet=null) => {
+  if (!wallet) return;
+
   if (action === 'map') {
-    if (!wallet) return;
     window.open(`https://v2.bubblemaps.io/map?address=${wallet?.public_key}&chain=solana&limit=80`)
-  } else {
-    if (!wallet) return;
+  } else if (action === 'secret-key') {
     emits('getWalletPrivateKey', wallet.id);
+  } else if (action === 'delete-wallet') {
+    emits('openWalletModal', {type: 'delete-wallet', item: wallet});
   }
 }
 
 const calculateTotalWalletAmount = (wallet) => {
   if (!wallet) return 0;
+  const sol = sliceNumberAfterDot(wallet.balance_sol);
 
-  return toDynamicFix(wallet.balance_sol + wallet.tokens_balance_sol);
+  return `${sol} SOL`;
+}
+
+const scheduleCloseWalletAsset = () => {
+  cancelCloseWalletAsset();
+  closeWalletAssetTimeout = setTimeout(() => {
+    walletAssets.value = '';
+    closeWalletAssetTimeout = null;
+  }, 120);
+}
+const cancelCloseWalletAsset = () => {
+  if (!closeWalletAssetTimeout) return;
+  clearTimeout(closeWalletAssetTimeout);
+  closeWalletAssetTimeout = null;
 }
 
 const formatTokenAmount = (amount) => {
@@ -335,6 +386,45 @@ const toggleUIKit = (type) => {
 </script>
 <style scoped lang="scss">
 .project-desktop {
+  &__title-skeleton {
+    width: 200px;
+    height: 28px;
+  }
+
+  &__field-skeleton {
+    width: 120px;
+    height: 18px;
+  }
+
+  &__info-skeleton {
+    width: 95px;
+    height: 18px;
+  }
+
+  &__wallet-skeleton {
+    width: 220px;
+    height: 18px;
+  }
+
+  &__cell-skeleton {
+    width: 80px;
+    height: 18px;
+    margin-left: auto;
+  }
+
+  &__balance-skeleton {
+    width: 110px;
+    height: 18px;
+    margin-left: auto;
+  }
+
+  &__action-skeleton {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    margin-left: auto;
+  }
+
   & .tooltip {
     position: absolute;
     bottom: calc(100% + 10px);
@@ -380,6 +470,12 @@ const toggleUIKit = (type) => {
     &_top {
       display: flex;
       align-items: center;
+      min-height: 32px;
+
+      & .skeleton {
+        height: 25px;
+        width: 110px;
+      }
 
       & .tooltip {
         top: calc(100% + 5px);
@@ -486,6 +582,7 @@ const toggleUIKit = (type) => {
       align-items: center;
       justify-content: space-between;
       margin-bottom: 16px;
+      min-height: 40px;
 
       & .imports {
         display: flex;
@@ -500,11 +597,11 @@ const toggleUIKit = (type) => {
       }
 
       &.lifetime {
-        width: calc((160 / 1163) * 100%);
+        width: calc((110 / 1163) * 100%);
       }
 
       &.balance {
-        width: calc((180 / 1163) * 100%);
+        width: calc((230 / 1163) * 100%);
       }
 
       &.frozen_money {
@@ -528,11 +625,11 @@ const toggleUIKit = (type) => {
       }
 
       &.lifetime {
-        width: calc((160 / 1163) * 100%);
+        width: calc((110 / 1163) * 100%);
       }
 
       &.balance {
-        width: calc((180 / 1163) * 100%);
+        width: calc((230 / 1163) * 100%);
       }
 
       &.frozen_money {
@@ -576,6 +673,22 @@ const toggleUIKit = (type) => {
   &__balance {
     position: relative;
 
+    & .balance {
+      display: flex;
+      gap: 5px;
+      overflow: hidden;
+
+      & .sol {
+        min-width: fit-content;
+      }
+
+      & .assets {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-wrap: nowrap;
+      }
+    }
+
     &_tokens {
       position: absolute;
       display: flex;
@@ -606,6 +719,8 @@ const toggleUIKit = (type) => {
         flex-direction: column;
         gap: 12px;
         padding: 16px 12px;
+        overflow: scroll;
+        max-height: 333px;
       }
 
       &-item {

@@ -70,6 +70,7 @@ export const ImportSolWallets = async (data) => apiInstance.post('/wallets/solan
 export const ImportSolWalletsFromFile = async (data) => apiInstance.post('/wallets/solana/import-file', data);
 export const MonitorSolWallets = async (data) => apiInstance.post('/wallets/solana/monitor', data);
 export const GetWalletPrivetKeyByID = async (id) => apiInstance.get(`/wallets/solana/${id}`);
+export const DeleteSolWallet = async (id) => apiInstance.delete(`/wallets/solana/${id}`);
 export const GetWalletsPrivateKeys = async (id) => apiInstance.get(`/wallets/solana/`, {
     params: {
         projectID: id,
@@ -137,4 +138,13 @@ export const GetSmartBuyBackTransactions = async(id, params) => apiInstance.get(
         pageSize: params?.pageSize,
     }
 });
-export const GetSmartBuyBackHistory = async() => apiInstance.get(`/buyback`);
+export const GetSmartBuyBackHistory = async(params) => apiInstance.get(`/buyback`, {
+    params: {
+        page: params?.page,
+        pageSize: params?.pageSize,
+        status: params?.status,
+    }
+});
+export const StopSmartBuyBackTarget = async({id, targetID}) => apiInstance.delete(`/buyback/${id}/targets/${targetID}`);
+export const CreateSmartBuyBackTarget = async(id, data) => apiInstance.post(`/buyback/${id}/targets`, data);
+export const UpdateSmartBuyBackTarget = async({id, targetID, data}) => apiInstance.patch(`/buyback/${id}/targets/${targetID}`, data);

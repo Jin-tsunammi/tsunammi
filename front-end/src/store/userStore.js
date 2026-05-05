@@ -3,10 +3,12 @@ import {ref} from "vue";
 import {GetUser} from "../api/api.js";
 import {useToastStore} from "./toastStore.js";
 import {useModalsStore} from "./modalsStore.js";
+import {useRouter} from "vue-router";
 
 export const useUserStore = defineStore('user', () => {
     const toastStore = useToastStore();
     const modalsStore = useModalsStore();
+    const router = useRouter();
 
     const isUserAuth = ref(false);
     const userData = ref(null);

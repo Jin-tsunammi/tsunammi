@@ -7,9 +7,9 @@
       <div class="campaign-estimate__breakdown">
         <div class="campaign-estimate__breakdown_item">
           <div class="paragraph-small medium">Budget</div>
-          <span class="monospaced-small regular">{{`${toDynamicFix(estimateData?.budget_sol || 0)} ${tokenSymbol}`}}</span>
+          <span class="monospaced-small regular">{{`${toDynamicFix(estimateData?.budget || 0)} ${tokenSymbol}`}}</span>
         </div>
-        <div v-if="campaignAction === 'pull-up'" class="campaign-estimate__breakdown_item">
+        <div class="campaign-estimate__breakdown_item">
           <div class="paragraph-small medium" @mouseenter="toggleUIKit('network-fee')" @mouseleave="toggleUIKit('network-fee')">
             Network fee
             <div class="ttip">
@@ -23,7 +23,7 @@
               <SVGAlertInfo color="#4B5563"/>
             </div>
           </div>
-          <span class="monospaced-small regular">{{`${toDynamicFix(estimateData?.rent_sol || 0)} ${tokenSymbol}`}}</span>
+          <span class="monospaced-small regular">{{`${formatAmount(estimateData?.pool_fee_sol || 0)} SOL`}}</span>
         </div>
         <div v-if="campaignAction === 'pull-up'" class="campaign-estimate__breakdown_item">
           <div class="paragraph-small medium" @mouseenter="toggleUIKit('frozen-money')" @mouseleave="toggleUIKit('frozen-money')">
@@ -39,7 +39,7 @@
               <SVGAlertInfo color="#4B5563"/>
             </div>
           </div>
-          <span class="monospaced-small regular">{{`${toDynamicFix(estimateData?.tip_sol || 0)} ${tokenSymbol}`}} </span>
+          <span class="monospaced-small regular">{{`${toDynamicFix(estimateData?.rent_sol || 0)} ${tokenSymbol}`}} </span>
         </div>
       </div>
       <div class="campaign-estimate__divider"></div>
@@ -58,7 +58,7 @@
 import {computed, ref} from "vue";
 import UIToolTip from "../../UI/UIToolTip.vue";
 import SVGAlertInfo from "../../SVG/SVGAlertInfo.vue";
-import {toDynamicFix} from "../../../helpers/index.js";
+import {formatSmallNumbers, toDynamicFix} from "../../../helpers/index.js";
 import {useCampaignsStore} from "../../../store/campaignsStore.js";
 
 const props = defineProps({
@@ -68,7 +68,7 @@ const props = defineProps({
 const campaignStore = useCampaignsStore();
 const UIKitVisible = ref('');
 const tokenSymbol = computed(() => {
-  if (props.campaignAction === 'pull-up') return 'Sol';
+  if (props.campaignAction === 'pull-up') return 'SOL';
   else return campaignStore.selectedToken?.symbol || '';
 })
 const totalAmount = computed(() => {
@@ -76,12 +76,25 @@ const totalAmount = computed(() => {
     return 0;
   } else {
     if (props.campaignAction === 'pull-up') {
-      return toDynamicFix(props.estimateData.budget_sol + props.estimateData.rent_sol + props.estimateData.tip_sol + campaignStore.campaign.priority_fee);
+      return toDynamicFix(props.estimateData?.budget + props.estimateData?.pool_fee_sol + props.estimateData?.rent_sol + campaignStore.campaign.priority_fee);
     } else {
-      return toDynamicFix(props.estimateData.budget_sol);
+      return toDynamicFix(props.estimateData.budget);
     }
   }
 })
+
+const formatAmount = (val) => {
+  const num = Number(val);
+
+  if (!Number.isFinite(num)) return '0';
+  const str = String(num);
+  if (str.includes('e')) {
+
+    return formatSmallNumbers(val);
+  } else {
+    return toDynamicFix(num);
+  }
+}
 
 const toggleUIKit = (type) => {
   if (UIKitVisible.value !== type) {

@@ -59,14 +59,11 @@
 </template>
 <script setup>
 import SVGCloseSquare from "../../SVG/SVGCloseSquare.vue";
-import Pagination from "../../UI/Pagination.vue";
 import UITable from "../../UI/UITable.vue";
 import SVGSmallArrowDown from "../../SVG/SVGSmallArrowDown.vue";
-import SVGKey from "../../SVG/SVGKey.vue";
 import SVGCheckedSquare from "../../SVG/SVGCheckedSquare.vue";
 import {formatAmount, formatDate, formatWalletAddress} from "../../../helpers/index.js";
 import {computed, ref} from "vue";
-import SVGClock from "../../SVG/SVGClock.vue";
 import SVGClockFading from "../../SVG/SVGClockFading.vue";
 import {SOL_SCAN_BASE_URL} from "../../../constants/const.js";
 

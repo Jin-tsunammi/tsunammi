@@ -115,6 +115,10 @@ const handleClose = () => {
       &.disabled {
         opacity: 0.5;
         pointer-events: none;
+
+        &:hover {
+          cursor: not-allowed;
+        }
       }
     }
 

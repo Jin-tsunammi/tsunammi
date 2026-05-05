@@ -51,7 +51,7 @@
   </div>
 </template>
 <script setup>
-import {useRoute} from "vue-router";
+import {useRoute, useRouter} from "vue-router";
 import {computed, ref, watch} from "vue";
 import UIButton from "../UI/UIButton.vue";
 import UIBaseInput from "../UI/UIBaseInput.vue";
@@ -66,6 +66,7 @@ import {useUserStore} from "../../store/userStore.js";
 import {errorToast} from "../../helpers/index.js";
 import SVGGoogleIcon from "../SVG/SVGGoogleIcon.vue";
 import {useModalsStore} from "../../store/modalsStore.js";
+import ConnectWallet from "../Profile/ConnectWallet.vue";
 
 const props = defineProps({
   isEmailAlreadyExists: {type: Boolean, default: false},
@@ -144,7 +145,7 @@ const handleGoogleAuth = async() => {
       user.stsTokenManager.expirationTime
     );
 
-    let resp;
+    let resp = null;
 
     if (props.page === 'signup') {
       resp = await SignUpByGoogle(accessToken);

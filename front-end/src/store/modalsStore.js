@@ -6,6 +6,8 @@ export const useModalsStore = defineStore('modals', () => {
     const DEFAULT_MODAL_DATA = {
         is_open: false,
         title: '',
+        mainText: '',
+        additionalText: '',
         type: '',
         is_custom: false,
         action: 'configure', // configure | confirmation | login

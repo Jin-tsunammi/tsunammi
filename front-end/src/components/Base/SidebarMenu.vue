@@ -44,12 +44,15 @@
             <a href="https://t.me/tsunammitools" target="_blank"><SVGTelegram color="white" class="telegram"/></a>
           </li>
         </ul>
+        <div class="sidebar-menu__bottom_footer paragraph-small regular">
+          <span>@ {{ currentYear }} Tsunammi</span>
+        </div>
       </div>
     </div>
   </div>
 </template>
 <script setup>
-import {markRaw, ref} from "vue";
+import {computed, markRaw, ref} from "vue";
 import SVGWallet from "../SVG/SVGWallet.vue";
 import SVGSmallArrowDown from "../SVG/SVGSmallArrowDown.vue";
 import SVGDiscord from "../SVG/SVGDiscord.vue";
@@ -85,7 +88,7 @@ const menu = ref([
       //   name: 'LiquidityBurn'
       // },
       {
-        label: 'Token Activity History',
+        label: 'History',
         name: 'TokenHistory'
       }
     ],
@@ -122,26 +125,33 @@ const menu = ref([
       {
         label: 'Price Boost',
         name: 'MarketTargetPullUpCreate',
-        params: {campaign_id: 'create'}
+        params: {campaign_id: 'create'},
+        children: ['MarketTargetPullUpCreate']
       },
       {
         label: 'Price Drop',
         name: 'MarketTargetDrop',
-        params: {campaign_id: 'create'}
+        params: {campaign_id: 'create'},
+        children: ['MarketTargetDrop']
       },
       {
         label: 'Smart Buy/Sell',
         name: 'MarketSmartBuyback',
-        params: {campaign_id: 'create'}
+        params: {campaign_id: 'create'},
+        children: ['MarketSmartBuyback']
       },
       {
-        label: 'MM History',
-        name: 'MarketHistory'
+        label: 'History',
+        name: 'MarketHistory',
+        children: ['SmartBuyBackTransactions', 'MarketTransactions']
       },
     ],
     is_open: true,
   },
 ])
+const currentYear = computed(() => {
+  return new Date().getFullYear();
+})
 
 const toggleCategory = (category) => {
   category.is_open = !category.is_open
@@ -262,8 +272,17 @@ const closeMobileSideBar = () => {
     margin-top: auto;
     display: flex;
     flex-direction: column;
-    gap: 48px;
+    gap: 24px;
     padding: 0 12px;
+
+    &_footer {
+      color: #9CA3AF;
+      font-size: 14px;
+      font-style: normal;
+      font-weight: 400;
+      line-height: 150%;
+      letter-spacing: 0.07px;
+    }
 
     &_socials {
       display: flex;

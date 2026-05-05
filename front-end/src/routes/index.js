@@ -69,6 +69,7 @@ export const router = createRouter({
             name: 'MarketTransactions',
             component: () => import("../pages/market-making/Transactions.vue"),
         },
+        ,
         {
             path: '/market-making/buyback-transactions/:campaign_id',
             name: 'SmartBuyBackTransactions',
@@ -129,6 +130,10 @@ router.beforeEach(async (to, from, next) => {
             } catch (err) {
                 console.error('Refresh token failed:', err);
                 userStore.isUserAuth = false;
+                CookieManager.removeItem("access_token");
+                CookieManager.removeItem("refresh_token");
+                userStore.setUserData(null);
+                return next({name: 'Home'});
             }
         } else {
             userStore.isUserAuth = false;
@@ -137,7 +142,15 @@ router.beforeEach(async (to, from, next) => {
         userStore.isUserAuth = true;
 
         if (!userStore.userData) {
-            await userStore.getUserData();
+            try {
+                await userStore.getUserData();
+            } catch (e) {
+                CookieManager.removeItem("access_token");
+                CookieManager.removeItem("refresh_token");
+                userStore.setUserData(null);
+                userStore.isUserAuth = false;
+                return next({name: 'Home'});
+            }
         }
     }
 

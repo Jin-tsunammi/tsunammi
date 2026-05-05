@@ -24,6 +24,14 @@ defineProps({
   flex-direction: column;
   justify-content: center;
 
+  &.disabled {
+    opacity: .5;
+
+    &:hover {
+      cursor: not-allowed;
+    }
+  }
+
   &:hover {
     background: #F3F4F6;
   }

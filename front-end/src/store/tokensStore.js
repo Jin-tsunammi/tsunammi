@@ -2,6 +2,7 @@ import {defineStore} from "pinia";
 import {ref} from "vue";
 import {fetchSolTokenMetadata} from "../helpers/index.js";
 import {SOLANA_MINT} from "../constants/const.js";
+import axios from "axios";
 
 export const useTokensStore = defineStore('tokens', () => {
     const solTokensData = ref({});
@@ -36,8 +37,25 @@ export const useTokensStore = defineStore('tokens', () => {
         }
     }
 
+    const getTokenPrice = async(tokenMint) => {
+        if (!tokenMint) return;
+        try {
+            const resp = await axios.get('https://api.jup.ag/price/v3', {
+                headers: {'x-api-key': import.meta.env.VITE_JUPITER_API_KEY},
+                params: {ids: tokenMint}
+            });
+
+            if (resp.data) return resp.data;
+            else return null;
+
+        } catch (e) {
+            console.error(e.response);
+        }
+    }
+
     return {
         solTokensData,
         updateSolTokensData,
+        getTokenPrice,
     }
 })

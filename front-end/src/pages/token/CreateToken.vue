@@ -6,7 +6,10 @@
         <div class="token-create__desktop_left">
           <CreateTokenTop
             :data="tokenData"
+            :errors="errors"
             @handle-image-save="handleLogoChoose"
+            @handle-wallet-connect="handleWalletConnect"
+            @clear-error-message="clearErrorMessage"
           />
           <UIAlert
             class="token-create__alert"
@@ -91,6 +94,22 @@ import SVGTwitter from "../../components/SVG/SVGTwitter.vue";
 import SVGDiscord from "../../components/SVG/SVGDiscord.vue";
 import SVGWebsite from "../../components/SVG/SVGWebsite.vue";
 import SVGTelegram from "../../components/SVG/SVGTelegram.vue";
+import {useWallet} from "../../composable/useWallet.js";
+import {Connection, Keypair, SystemProgram, Transaction} from "@solana/web3.js";
+import {
+  createInitializeMintInstruction,
+  MINT_SIZE,
+  TOKEN_PROGRAM_ID,
+  createAssociatedTokenAccountInstruction,
+  getAssociatedTokenAddress,
+  createMintToInstruction,
+  createSetAuthorityInstruction, AuthorityType,
+} from "@solana/spl-token";
+import {cloneDeep} from "lodash";
+import { createUmi } from '@metaplex-foundation/umi-bundle-defaults';
+import {updateV1, createV1, TokenStandard} from '@metaplex-foundation/mpl-token-metadata';
+import { fromWeb3JsPublicKey, toWeb3JsInstruction } from '@metaplex-foundation/umi-web3js-adapters';
+import { none, some, signerIdentity, createNoopSigner } from '@metaplex-foundation/umi';
 
 const route = useRoute();
 const router = useRouter();
@@ -111,13 +130,20 @@ const tokenData = ref({
     website: '',
     telegram: '',
   },
-  fixed_supple: false,
+  fixed_supply: false,
   revoke_freeze: false,
   immutable: false,
   social_links_toggle: false,
 })
 const isChangesSaving = ref(false);
 const isPageLoading = ref(true)
+const defaultErrors = {
+  name: '',
+  ticker: '',
+  supply: '',
+  ownership: '',
+}
+const errors = ref(cloneDeep(defaultErrors))
 const startButtonText = computed(() => {
   return isChangesSaving.value ? 'Creating...' : 'Create token';
 })
@@ -129,17 +155,17 @@ const socialLinksInfo = {
 }
 const settings = [
   {
-    key: 'fixed_supple',
-    label: 'Fixed Supply', 
+    key: 'fixed_supply',
+    label: 'Fixed Supply',
     text: 'Permanently disables minting of new tokens. Total supply becomes fixed and cannot be increased by anyone, including the creator.'
   },
   {
-    key:  'revoke_freeze',
-    label: 'Revoke Freeze', 
+    key: 'revoke_freeze',
+    label: 'Revoke Freeze',
     text: 'Removes the ability to freeze token accounts. Ensures holders can always transfer or sell their tokens without restrictions.'
   },
   {
-    key:  'immutable',
+    key: 'immutable',
     label: 'Immutable',
     text: 'Locks token metadata forever. Name, symbol, logo, and description cannot be changed after this action is executed.'
   },
@@ -149,6 +175,8 @@ const settings = [
     text: 'Add Twitter, Telegram, and website URLs to token metadata for community discovery and verification.'
   },
 ];
+
+const {isLoading, connectHandler, walletProvider, publicKey, address} = useWallet();
 
 const handlePageRefresh = async (isRefreshing = false, isAuth = false) => {
   isPageLoading.value = true;
@@ -187,9 +215,168 @@ const handleLogoChoose = (data) => {
   tokenData.value.logo_file = data.file || null;
 }
 
-const handleTokenCreate = async () => {
+const handleWalletConnect = async () => {
+  try {
+    await connectHandler();
 
+    clearErrorMessage('ownership')
+  } catch (e) {
+    console.log('wallet connection error:', e);
+  }
 }
+
+const clearErrorMessage = (field) => {
+  if (errors.value[field]) {
+    errors.value[field] = '';
+  }
+}
+
+const areFieldsValid = () => {
+  errors.value = cloneDeep(defaultErrors);
+
+  Object.keys(errors.value).forEach((key) => {
+    const val = tokenData.value[key];
+    const maxSolanaSupply = 18446744073.709551615;
+
+    if (['name', 'ticker'].includes(key) && !val.length) {
+      errors.value[key] = 'Minimum 3 characters.';
+    } else if (key === 'supply') {
+      if (Number(val) > maxSolanaSupply) {
+        errors.value[key] = 'The maximum number of Solana chain tokens is 18446744073.709551615';
+      } else if (Number(val) === 0) {
+        errors.value[key] = 'Enter token amount';
+      }
+    }
+    // else if (key === 'ownership' && !val.length) {
+    //   errors.value[key] = 'Connect Ownership wallet';
+    // }
+  })
+
+  return Object.keys(errors.value).every((key) => !errors.value[key].length)
+}
+
+const handleTokenCreate = async () => {
+  if (!areFieldsValid()) return;
+
+  try {
+    if (!address.value?.length) await connectHandler();
+
+    const RPC_URL = `${import.meta.env.VITE_HELIUS_RPC_URL}API_KEY}`;
+    const connection = new Connection(RPC_URL, 'confirmed');
+
+    const umi = createUmi(RPC_URL);
+    const userLibPublicKey = fromWeb3JsPublicKey(publicKey.value);
+    umi.use(signerIdentity(createNoopSigner(userLibPublicKey)));
+
+    const decimals = Number(tokenData.value.decimals);
+    const tokenName = tokenData.value.name;
+    const tokenSymbol = tokenData.value.ticker;
+    const tokenSupply = BigInt(tokenData.value.supply);
+
+    const mintKeypair = Keypair.generate();
+    const lamports = await connection.getMinimumBalanceForRentExemption(MINT_SIZE);
+
+    const transaction = new Transaction();
+
+    transaction.add(
+      SystemProgram.createAccount({
+        fromPubkey: publicKey.value,
+        newAccountPubkey: mintKeypair.publicKey,
+        space: MINT_SIZE,
+        lamports,
+        programId: TOKEN_PROGRAM_ID,
+      })
+    );
+
+    transaction.add(
+      createInitializeMintInstruction(
+        mintKeypair.publicKey,
+        decimals,
+        publicKey.value,
+        publicKey.value,
+      )
+    );
+
+    const createMetadataIx = createV1(umi, {
+      mint: fromWeb3JsPublicKey(mintKeypair.publicKey),
+      authority: umi.identity,
+      name: tokenName,
+      symbol: tokenSymbol,
+      uri: "https://your-json-url.json",
+      sellerFeeBasisPoints: 0,
+      tokenStandard: TokenStandard.Fungible,
+      isMutable: !tokenData.value.immutable,
+    });
+
+    transaction.add(toWeb3JsInstruction(createMetadataIx.getInstructions()[0]));
+
+    const ata = await getAssociatedTokenAddress(mintKeypair.publicKey, publicKey.value);
+
+    transaction.add(
+      createAssociatedTokenAccountInstruction(
+        publicKey.value,
+        ata,
+        publicKey.value,
+        mintKeypair.publicKey
+      )
+    );
+
+    transaction.add(
+      createMintToInstruction(
+        mintKeypair.publicKey,
+        ata,
+        publicKey.value,
+        tokenSupply * BigInt(10 ** decimals)
+      )
+    );
+
+    if (tokenData.value.immutable) {
+      const updateIx = updateV1(umi, {
+        mint: fromWeb3JsPublicKey(mintKeypair.publicKey),
+        authority: umi.identity,
+        newUpdateAuthority: none(),
+        isMutable: some(false),
+      });
+      transaction.add(toWeb3JsInstruction(updateIx.getInstructions()[0]));
+    }
+
+    if (tokenData.value.fixed_supply) {
+      transaction.add(
+        createSetAuthorityInstruction(
+          mintKeypair.publicKey,
+          publicKey.value,
+          AuthorityType.MintTokens,
+          null
+        )
+      );
+    }
+
+    if (tokenData.value.revoke_freeze) {
+      transaction.add(
+        createSetAuthorityInstruction(
+          mintKeypair.publicKey,
+          publicKey.value,
+          AuthorityType.FreezeAccount,
+          null
+        )
+      );
+    }
+
+    const { blockhash } = await connection.getLatestBlockhash('finalized');
+    transaction.recentBlockhash = blockhash;
+    transaction.feePayer = publicKey.value;
+
+    transaction.partialSign(mintKeypair);
+
+    const signedTx = await walletProvider.value.signTransaction(transaction);
+    const sig = await connection.sendRawTransaction(signedTx.serialize());
+
+    console.log("Mint:", mintKeypair.publicKey.toBase58());
+    toastStore.success({text: `Token ${tokenData.value.name} has been created.`})
+  } catch (error) {
+    console.error("ERRooooooooR:", error);
+  }
+};
 
 useHeaderRefresh(() => handlePageRefresh(true));
 
@@ -204,6 +391,12 @@ watch(() => userStore.isUserAuth, async (newVal) => {
     await handlePageRefresh(false, true);
   }
 })
+
+watch(() => address.value, async (newVal) => {
+  if (newVal?.length) {
+    tokenData.value.ownership = newVal;
+  }
+}, { immutable: true });
 
 onMounted(async () => {
   if (route.params?.campaign_id !== 'create' && !userStore.isUserAuth) {
@@ -327,6 +520,7 @@ onMounted(async () => {
       }
     }
   }
+
 }
 
 .modal-stop-campaign {

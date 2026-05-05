@@ -61,25 +61,42 @@
           />
         </div>
         <div v-if="!isEditMod" class="target-pull-up__desktop_right">
-          <UISectionTitleWithBorder>Active campaign status</UISectionTitleWithBorder>
-          <div class="target-pull-up__desktop_campaigns">
-            <UIEmptyState
-              v-if="!campaignStore.activeCampaigns?.length"
-              :icon="SVGMonitorDot"
-              :main_text="'No active campaigns'"
-              :add_text="'Active campaigns will show here'"
-            />
-            <div class="list" v-else>
-              <ProfileCampaign
-                v-for="campaign in campaignStore.activeCampaigns"
-                :key="campaign.campaign_id"
-                :campaign="campaign"
-                :campaign-action="campaignAction"
-                @handle-add-budget="openModal({type: 'add-budget', campaign})"
-                @handle-stop="openModal({type: 'stop-campaign', campaign})"
-                @handle-edit="openCampaign(campaign)"
+          <div class="target-pull-up__desktop_active">
+            <UISectionTitleWithBorder>Active campaign status</UISectionTitleWithBorder>
+            <div class="target-pull-up__desktop_campaigns">
+              <UIEmptyState
+                v-if="!campaignStore.activeCampaigns?.length"
+                :icon="SVGMonitorDot"
+                :main_text="'No active campaigns'"
+                :add_text="'Active campaigns will show here'"
               />
+              <div class="list" v-else>
+                <ProfileCampaign
+                  v-for="campaign in campaignStore.activeCampaigns"
+                  :key="campaign.campaign_id"
+                  :campaign="campaign"
+                  :campaign-action="campaignAction"
+                  @handle-add-budget="openModal({type: 'add-budget', campaign})"
+                  @handle-stop="openModal({type: 'stop-campaign', campaign})"
+                  @handle-edit="openCampaign(campaign)"
+                />
+              </div>
             </div>
+          </div>
+          <div v-if="campaignsHistory.length" class="target-pull-up__desktop_history">
+            <UISectionTitleWithBorder>History</UISectionTitleWithBorder>
+            <div class="target-pull-up__desktop_campaigns">
+              <div class="list">
+                <CompletedCampaign
+                  v-for="campaign in campaignsHistory"
+                  :key="campaign.campaign_id"
+                  :campaign="campaign"
+                  :campaign-action="campaignAction"
+                />
+              </div>
+            </div>
+
+            <router-link class="see-all paragraph-small medium" :to="{name: 'MarketHistory'}">See all history</router-link>
           </div>
         </div>
       </div>
@@ -140,7 +157,7 @@ import UIEmptyState from "../../components/UI/UIEmptyState.vue";
 import SVGMonitorDot from "../../components/SVG/SVGMonitorDot.vue";
 import CampaignEstimate from "../../components/MarketMakingPages/TargetPullUp/CampaignEstimate.vue";
 import {useCampaignsStore} from "../../store/campaignsStore.js";
-import {errorToast} from "../../helpers/index.js";
+import {calculateBudget, errorToast} from "../../helpers/index.js";
 import Modals from "../../components/UI/Modals.vue";
 import ConfirmationModal from "../../components/UI/Modals/ConfirmationModal.vue";
 import {useModalsStore} from "../../store/modalsStore.js";
@@ -154,6 +171,7 @@ import {useTokensStore} from "../../store/tokensStore.js";
 import {storeToRefs} from "pinia";
 import {useUserStore} from "../../store/userStore.js";
 import {useHeaderRefresh} from "../../composable/useHeaderRefresh.js";
+import CompletedCampaign from "../../components/MarketMakingPages/CompletedCampaign.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -172,8 +190,9 @@ const isChangesSaving = ref(false);
 const isPoolNotFound = ref(false);
 const isRouteChanged = ref(false);
 const projects = ref([]);
+const campaignsHistory = ref([]);
 const searchToken = ref('');
-const isPageLoading = ref(true)
+const isPageLoading = ref(true);
 let jitoInterval = null
 let campaignsInterval = null
 const selectedDex = ref({label: 'Raydium', val: 'raydium'});
@@ -209,7 +228,7 @@ const campaignAction = computed(() => {
 })
 const activeCampaignsParams = computed(() => {
   return {
-    status: 'in_use',
+    status: 'ACTIVE',
     type: campaignAction.value.replace('-', '_'),
   };
 })
@@ -317,7 +336,7 @@ const openModal = async({type, campaign = null}) => {
 }
 
 const getProjectsWithBalance = async () => {
-  let params;
+  let params = null;
 
   if (campaignAction.value === 'pull-up') {
     params = {mint: SOLANA_MINT};
@@ -366,6 +385,15 @@ const handlePageRefresh = async (isRefreshing = false, isAuth=false) => {
       await tokensStore.updateSolTokensData(sourceToken, 'source_token_mint');
     } else {
       await campaignStore.getAllActiveCampaigns(activeCampaignsParams.value);
+      await campaignStore.getAllCampaigns({
+        page: 1,
+        pageSize: 30,
+      });
+
+      if (campaignStore.allCampaigns.length) {
+        const onlyCompleted = campaignStore.allCampaigns?.filter(campaign => campaign.status.toLowerCase() !== 'active')
+        campaignsHistory.value = onlyCompleted.slice(0, 3);
+      }
     }
 
     await getProjectsWithBalance();
@@ -431,7 +459,7 @@ const fetchEstimate = debounce(async (data) => {
     return
   }
   try {
-    let resp;
+    let resp = null;
     if (ExchangeSettingsRef.value && ExchangeSettingsRef.value.selectedDex?.val === 'pumpfun') {
       resp = await GetPumpFunEstimate(data)
     } else {
@@ -454,6 +482,7 @@ const fetchEstimate = debounce(async (data) => {
 
 const validateCampaignBeforeStart = () => {
   const campaign = campaignStore.campaign || {};
+  const NANO_IN_SECOND = 1_000_000_000;
 
   const destTokenMint = String(campaign[tokenMint.value] || '').trim();
   const projectId = Number(campaign.project_id);
@@ -756,9 +785,22 @@ onBeforeUnmount(() => {
       max-width: 669px;
     }
 
+    &_history {
+      & .see-all {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 30px auto 0;
+        color: #374151;
+      }
+    }
+
     &_right {
       width: 100%;
       max-width: 371px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
     }
 
     &_campaigns {

@@ -127,7 +127,7 @@
             @handle-blur="handleInputBlur"
           >
             <template #icon-right>
-              <span class="sol monospaced-small">Sol</span>
+              <span class="sol monospaced-small">SOL</span>
             </template>
           </UIBaseInput>
           <UIBaseInput
@@ -139,7 +139,7 @@
             @handle-input="handleErrorClear('max_deposit_amount')"
           >
             <template #icon-right>
-              <span class="sol monospaced-small">Sol</span>
+              <span class="sol monospaced-small">SOL</span>
             </template>
           </UIBaseInput>
         </div>
@@ -148,8 +148,8 @@
       <div class="selected-cex-top-up__total">
         <div class="selected-cex-top-up__total_left">
           <span class="label paragraph-small">Sum for deposit</span>
-          <div class="sum monospaced-large">{{totalAmountText}} Sol</div>
-          <span class="commission paragraph-mini">Total (Including Commission): {{totalCommission}} Sol</span>
+          <div class="sum monospaced-large">{{totalAmountText}} SOL</div>
+          <span class="commission paragraph-mini">Total (Including Commission): {{totalCommission}} SOL</span>
         </div>
         <UIButton color_type="primary" size="large" @cta="handleTopUp">Top up and pay</UIButton>
       </div>
@@ -167,7 +167,7 @@ import {useRouter} from "vue-router";
 import UIGhostButtonsGroup from "../../UI/UIGhostButtonsGroup.vue";
 import {useToastStore} from "../../../store/toastStore.js";
 import {CreateDeposit} from "../../../api/api.js";
-import {formatText, toDynamicFix} from "../../../helpers/index.js";
+import {formatAmount, formatText, toDynamicFix} from "../../../helpers/index.js";
 
 const props = defineProps({
   projects: {type: Array, default: []},
@@ -204,16 +204,18 @@ const cexData = ref({
 const quantityOptionSelected = ref('') // half | all
 const totalAmount = computed(() => {
   let averageAmount  = 0;
+  const min = Number(cexData.value.min_deposit);
+  const max = Number(cexData.value.max_deposit);
 
-  if (cexData.value.min_deposit && cexData.value.max_deposit) {
-    averageAmount = (cexData.value.min_deposit + cexData.value.max_deposit) / 2;
+  if (min && max) {
+    averageAmount = (min + max) / 2;
   } else {
-    averageAmount = cexData.value.min_deposit + cexData.value.max_deposit
+    averageAmount = min + max
   }
-  return cexData.value.quantity * averageAmount || 0;
+  return Number(cexData.value.quantity) * averageAmount || 0;
 })
 const totalAmountText = computed(() => {
-  return !totalAmount.value ? 0 : `~${toDynamicFix(totalAmount.value)}`;
+  return !Number(totalAmount.value) ? 0 : `~${toDynamicFix(Number(totalAmount.value))}`;
 })
 const totalCommission = computed(() => {
   const sum = totalAmount.value + (COMMISSION * (cexData.value.max_deposit ? cexData.value.quantity : 0));
@@ -224,8 +226,8 @@ const cexInputPlaceholder = computed(() => {
   else return 'Select CEX'
 })
 const projectInputPlaceholder = computed(() => {
-  if (!props.projects.length) return 'No Projects created'
-  else return 'Select Project'
+  if (!props.projects.length) return 'No Wallet Pools created'
+  else return 'Select Wallet Pool'
 })
 
 function handleWalletsQuantityInput(event) {

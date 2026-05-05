@@ -174,6 +174,7 @@ function handleInput(event) {
     &.disabled {
       opacity: .5;
       pointer-events: none;
+      cursor: not-allowed;
     }
 
     &:has(input:focus) {

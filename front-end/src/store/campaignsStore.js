@@ -63,7 +63,18 @@ export const useCampaignsStore = defineStore('campaigns', () => {
     const getAllCampaigns = async (params = null) => {
         try {
             const resp = await GetAllCampaigns(params);
-            allCampaigns.value = resp.data;
+            allCampaigns.value = resp.data?.campaigns;
+
+            const tokens = [];
+            resp.data.campaigns.forEach(campaign => {
+                if (campaign.type?.name?.toLowerCase() === 'pull up') {
+                    tokens.push({token_mint: campaign.token_mint_to});
+                } else {
+                    tokens.push({token_mint: campaign.token_mint_from});
+                }
+            });
+
+            await tokensStore.updateSolTokensData(tokens, 'token_mint');
         } catch (e) {
             errorToast(e?.response?.data || '')
         }
@@ -72,11 +83,17 @@ export const useCampaignsStore = defineStore('campaigns', () => {
     const getAllActiveCampaigns = async (params = null) => {
         try {
             const resp = await GetAllActiveCampaigns(params);
-            activeCampaigns.value = resp.data?.campaign_summary || [];
-
+            const campaigns = resp.data?.campaign_summary || [];
             const address = route.name === 'MarketTargetPullUpCreate' ? 'token_mint_to' : 'token_mint_from';
 
-            await tokensStore.updateSolTokensData( resp.data?.campaign_summary || [], address);
+            await tokensStore.updateSolTokensData( campaigns, address);
+            if (campaigns.length > 3) {
+                activeCampaigns.value = campaigns.slice(0, 3);
+            } else {
+               activeCampaigns.value = campaigns;
+            }
+
+
         } catch (e) {
             errorToast(e?.response?.data || '')
         }

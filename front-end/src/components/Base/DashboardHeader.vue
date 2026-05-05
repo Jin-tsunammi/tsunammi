@@ -56,7 +56,7 @@ import SVGLogOut from "../SVG/SVGLogOut.vue";
 import SVGLogIn from "../SVG/SVGLogIn.vue";
 import {useModalsStore} from "../../store/modalsStore.js";
 import {useHeaderRefreshStore} from "../../store/headerRefreshStore.js";
-import ProfileImage from "/images/default-avatar.webp";
+import ProfileImage from "../../../public/images/default-avatar.webp";
 import CookieManager from "../../helpers/cookieManager.js";
 import SVGArrowPrevious from "../SVG/SVGArrowPrevious.vue";
 
@@ -97,7 +97,7 @@ const isRefreshVisible = computed(() => {
   return !pages.includes(route.name);
 })
 const isBackButtonVisible = computed(() => {
-  const pages = ['WalletsSelectedProject'];
+  const pages = [''];
 
   if (route.name === 'MarketTargetPullUpCreate' && route.params?.campaign_id !== 'create') {
     return true;

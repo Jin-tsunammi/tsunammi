@@ -18,20 +18,20 @@
       <div class="profile-campaign__details">
         <div :class="['profile-campaign__status', campaign?.status?.toLowerCase()]">
           <div class="color monospaced-small"></div>
-          {{normilizeCampaignStatus}}
+          {{normilizeCampaignStatus(campaign?.status)}}
         </div>
 
-        <div class="profile-campaign__spend">
-          <div class="paragraph-small label">Spend</div>
-          <div class="monospaced-medium info">
-            <span>{{ toDynamicFix(campaign?.spent_budget ?? 0) }}</span>/{{`${toDynamicFix(campaign?.budget ?? 0)} ${tokenSymbol}`}}
-          </div>
-        </div>
+<!--        <div class="profile-campaign__spend">-->
+<!--          <div class="paragraph-small label">Spend</div>-->
+<!--          <div class="monospaced-medium info">-->
+<!--            <span>{{ toDynamicFix(campaign?.spent_budget ?? 0) }}</span>/{{`${toDynamicFix(campaign?.budget ?? 0)} ${tokenSymbol}`}}-->
+<!--          </div>-->
+<!--        </div>-->
       </div>
     </div>
 
     <div class="profile-campaign__bottom">
-      <template v-if="normilizeCampaignStatus === 'active'">
+      <template v-if="normilizeCampaignStatus(campaign?.status) === 'active'">
         <UIButton color_type="outline" size="large" @cta="emits('handleStop')">
           Stop
         </UIButton>
@@ -39,7 +39,7 @@
           Add Budget
         </UIButton>
 
-        <UIButton v-if="route.name !== 'MarketSmartBuyback'" class="edit" color_type="ghost" size="large" @cta="emits('handleEdit')">
+        <UIButton class="edit" color_type="ghost" size="large" @cta="emits('handleEdit')">
           <template #left-icon><SVGEdit /></template>
           Edit
         </UIButton>
@@ -51,7 +51,7 @@
 import { computed } from 'vue'
 import UIButton from "../UI/UIButton.vue";
 import UIAvatarShow from "../UI/UIAvatarShow.vue";
-import { toDynamicFix } from "../../helpers/index.js";
+import {normilizeCampaignStatus, toDynamicFix} from "../../helpers/index.js";
 import {useTokensStore} from "../../store/tokensStore.js";
 import SVGEdit from "../SVG/SVGEdit.vue";
 import {useRoute, useRouter} from "vue-router";
@@ -79,19 +79,6 @@ const mintType = computed(() => {
 const campaignMint = computed(() => {
   return props.campaign?.[mintType.value] || '';
 })
-const normilizeCampaignStatus = computed(() => {
-  if (!props.campaign) return '';
-  const status = props.campaign.status.replaceAll('_', ' ').toLowerCase();
-
-  switch (status) {
-    case 'in use':
-      return 'active';
-    case 'stop':
-      return 'stopped';
-    default:
-      return status;
-  }
-})
 const token = computed(() => {
   if (!props.campaign || !tokensStore.solTokensData[campaignMint.value]) return null;
 
@@ -99,7 +86,7 @@ const token = computed(() => {
 })
 const tokenSymbol = computed(() => {
   if (props.campaignAction === 'pull-down') return tokensStore.solTokensData[campaignMint.value]?.symbol || '';
-  else return 'Sol';
+  else return 'SOL';
 })
 
 const openCampaign = () => {
@@ -157,6 +144,7 @@ const openCampaign = () => {
       white-space: nowrap;
       flex-shrink: 1;
       min-width: 0;
+      text-transform: uppercase;
     }
   }
 

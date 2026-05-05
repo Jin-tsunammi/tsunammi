@@ -167,7 +167,7 @@ const mmLinks = [
   {label: 'Distribute Funds from CEX', text: 'Auto-split liquidity across wallets.', page: 'WalletsTopUpCex', svg: SVGFundsFromCEX, is_empty: false},
   {label: 'Price Boost', text: 'Strategic buys to pump the price.', page: 'MarketTargetPullUpCreate', params: {campaign_id: 'create'}, svg: SVGPriceBoost, is_empty: false},
   {label: 'Price Drop', text: 'Controlled sells for soft landing.', page: 'MarketTargetDrop', params: {campaign_id: 'create'}, svg: SVGPriceDrop, is_empty: false},
-  {label: 'Smart Buyback', text: 'Auto buyback on price triggers.', page: 'MarketSmartBuyback', params: {campaign_id: 'create'}, svg: SVGBuyback, is_empty: false},
+  {label: 'Smart Buy/Sell', text: 'Auto buyback on price triggers.', page: 'MarketSmartBuyback', params: {campaign_id: 'create'}, svg: SVGBuyback, is_empty: false},
   {label: 'MM History', text: 'Full log of all market operations.', page: 'MarketHistory', svg: SVGOpsHistory, is_empty: false},
   {label: 'Wallets Ops History', text: 'Track wallet funding and transfers.', page: 'WalletsHistory', svg: SVGWalletsHistory, is_empty: false},
   {label: 'Create Token', text: 'Deploy SPL tokens in seconds.', page: 'TokenCreate', svg: SVGCreateToken, is_empty: false},

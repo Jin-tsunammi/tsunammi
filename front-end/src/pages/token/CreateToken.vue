@@ -10,7 +10,11 @@
             @handle-image-save="handleLogoChoose"
             @handle-wallet-connect="handleWalletConnect"
             @clear-error-message="clearErrorMessage"
+            @handle-image-error="handleImageError"
           />
+          <div class="token-create__estimate paragraph-mini regular">
+            Estimated costs: 0.01862SOL
+          </div>
           <UIAlert
             class="token-create__alert"
             text="You can view and manage your token inside your wallet."
@@ -70,6 +74,18 @@
         </div>
       </div>
       <MobileAdaptsNotification class="token-create__mobile"/>
+
+      <Modals>
+        <ConfirmationModal
+          class="create-confirmation"
+          v-if="modalsStore.modalData.type === 'create-confirmation'"
+          additional-text="Check your wallet for token details or visit Solscan"
+          confirmation-btn-text="View on Solscan"
+          cancellation-btn-text="Ok"
+          header-color="success"
+          @handle-confirmation="openSolscan(modalsStore.modalData.item)"
+        />
+      </Modals>
     </div>
   </div>
 </template>
@@ -80,7 +96,7 @@ import UIAlert from "../../components/UI/UIAlert.vue";
 import SVGAlertInfo from "../../components/SVG/SVGAlertInfo.vue";
 import UISectionTitleWithBorder from "../../components/UI/UISectionTitleWithBorder.vue";
 import {useRoute, useRouter} from "vue-router";
-import {errorToast} from "../../helpers/index.js";
+import {errorToast, trackGoogleTagEvent} from "../../helpers/index.js";
 import PageLoading from "../../components/UI/PageLoading.vue";
 import {useToastStore} from "../../store/toastStore.js";
 import MobileAdaptsNotification from "../../components/UI/MobileAdaptsNotification.vue";
@@ -110,12 +126,18 @@ import { createUmi } from '@metaplex-foundation/umi-bundle-defaults';
 import {updateV1, createV1, TokenStandard} from '@metaplex-foundation/mpl-token-metadata';
 import { fromWeb3JsPublicKey, toWeb3JsInstruction } from '@metaplex-foundation/umi-web3js-adapters';
 import { none, some, signerIdentity, createNoopSigner } from '@metaplex-foundation/umi';
+import {UploadImage, UploadMetadata} from "../../api/api.js";
+import Modals from "../../components/UI/Modals.vue";
+import ConfirmationModal from "../../components/UI/Modals/ConfirmationModal.vue";
+import {useModalsStore} from "../../store/modalsStore.js";
 
 const route = useRoute();
 const router = useRouter();
 const toastStore = useToastStore();
+const modalsStore = useModalsStore();
 const smartCampaignStore = useSmartCampaignsStore();
 const userStore = useUserStore();
+const {isLoading, connectHandler, walletProvider, publicKey, address} = useWallet();
 const tokenData = ref({
   name: '',
   ticker: '',
@@ -130,9 +152,9 @@ const tokenData = ref({
     website: '',
     telegram: '',
   },
-  fixed_supply: false,
-  revoke_freeze: false,
-  immutable: false,
+  fixed_supply: true,
+  revoke_freeze: true,
+  immutable: true,
   social_links_toggle: false,
 })
 const isChangesSaving = ref(false);
@@ -142,10 +164,11 @@ const defaultErrors = {
   ticker: '',
   supply: '',
   ownership: '',
+  logo: '',
 }
 const errors = ref(cloneDeep(defaultErrors))
 const startButtonText = computed(() => {
-  return isChangesSaving.value ? 'Creating...' : 'Create token';
+  return isLoading.value ? 'Creating...' : 'Create token';
 })
 const socialLinksInfo = {
   twitter: {label: "X (Twitter)", placeholder: "Add X", icon: markRaw(SVGTwitter)},
@@ -175,8 +198,6 @@ const settings = [
     text: 'Add Twitter, Telegram, and website URLs to token metadata for community discovery and verification.'
   },
 ];
-
-const {isLoading, connectHandler, walletProvider, publicKey, address} = useWallet();
 
 const handlePageRefresh = async (isRefreshing = false, isAuth = false) => {
   isPageLoading.value = true;
@@ -208,11 +229,25 @@ const handlePageRefresh = async (isRefreshing = false, isAuth = false) => {
   }
 }
 
+const handleImageError = (errorMessage) => {
+  errors.value.logo = errorMessage;
+}
+
+const openSolscan = (data) => {
+  modalsStore.closeModal();
+  const url = 'https://solscan.io/token/'
+  if (data && data?.mint) {
+    window.open(url + data.mint, '_blank');
+  }
+}
+
 const handleLogoChoose = (data) => {
   if (!data) return;
 
   tokenData.value.logo = data.url || '';
   tokenData.value.logo_file = data.file || null;
+
+  clearErrorMessage('logo')
 }
 
 const handleWalletConnect = async () => {
@@ -232,8 +267,6 @@ const clearErrorMessage = (field) => {
 }
 
 const areFieldsValid = () => {
-  errors.value = cloneDeep(defaultErrors);
-
   Object.keys(errors.value).forEach((key) => {
     const val = tokenData.value[key];
     const maxSolanaSupply = 18446744073.709551615;
@@ -242,9 +275,11 @@ const areFieldsValid = () => {
       errors.value[key] = 'Minimum 3 characters.';
     } else if (key === 'supply') {
       if (Number(val) > maxSolanaSupply) {
-        errors.value[key] = 'The maximum number of Solana chain tokens is 18446744073.709551615';
+        errors.value[key] = 'The max number of Solana chain tokens is \n18 446 744 073.709551615';
       } else if (Number(val) === 0) {
         errors.value[key] = 'Enter token amount';
+      } else if (Number(val) < 1000000) {
+        errors.value[key] = 'The min number of Solana chain tokens is 1 000 000';
       }
     }
     // else if (key === 'ownership' && !val.length) {
@@ -257,21 +292,56 @@ const areFieldsValid = () => {
 
 const handleTokenCreate = async () => {
   if (!areFieldsValid()) return;
-
   try {
     if (!address.value?.length) await connectHandler();
+    const decimals = Number(tokenData.value.decimals);
+    const tokenName = tokenData.value.name;
+    const tokenSymbol = tokenData.value.ticker;
+    const tokenSupply = BigInt(tokenData.value.supply);
+    const lighthouseTestUrl = 'https://fit-aardvark-makzo.lighthouseweb3.xyz/ipfs/';
+    let metadataURI = "https://your-json-url.json";
+    let imageUrl = '';
+    const newFormData = new FormData();
 
-    const RPC_URL = `${import.meta.env.VITE_HELIUS_RPC_URL}API_KEY}`;
+    if (tokenData.value.logo_file) {
+      newFormData.append('image', tokenData.value.logo_file);
+
+      const imageResp = await UploadImage(newFormData);
+
+      if (imageResp?.data) {
+        // imageUrl = lighthouseTestUrl + imageResp.data.url;
+        imageUrl = lighthouseTestUrl + imageResp.data.cid;
+      }
+    }
+
+    // uri JSON
+    const metadata = {
+      name: tokenName,
+      symbol: tokenSymbol,
+      description: tokenData.value.description,
+      image: imageUrl,
+      external_url: tokenData.value.social_links.website,
+      extensions: {
+        twitter: tokenData.value.social_links.twitter,
+        telegram: tokenData.value.social_links.telegram,
+        discord: tokenData.value.social_links.discord
+      }
+    }
+
+    const metadataResp = await UploadMetadata(metadata);
+
+    if (metadataResp?.data) {
+      // metadataURI = metadataResp.data.metadata_url || '';
+      metadataURI = lighthouseTestUrl + metadataResp.data.cid || '';
+    }
+
+    const RPC_URL = `${import.meta.env.VITE_HELIUS_RPC_URL}API_KEY`;
+    // const RPC_URL = 'https://api.devnet.solana.com';
     const connection = new Connection(RPC_URL, 'confirmed');
 
     const umi = createUmi(RPC_URL);
     const userLibPublicKey = fromWeb3JsPublicKey(publicKey.value);
     umi.use(signerIdentity(createNoopSigner(userLibPublicKey)));
-
-    const decimals = Number(tokenData.value.decimals);
-    const tokenName = tokenData.value.name;
-    const tokenSymbol = tokenData.value.ticker;
-    const tokenSupply = BigInt(tokenData.value.supply);
 
     const mintKeypair = Keypair.generate();
     const lamports = await connection.getMinimumBalanceForRentExemption(MINT_SIZE);
@@ -302,7 +372,7 @@ const handleTokenCreate = async () => {
       authority: umi.identity,
       name: tokenName,
       symbol: tokenSymbol,
-      uri: "https://your-json-url.json",
+      uri: metadataURI,
       sellerFeeBasisPoints: 0,
       tokenStandard: TokenStandard.Fungible,
       isMutable: !tokenData.value.immutable,
@@ -371,10 +441,15 @@ const handleTokenCreate = async () => {
     const signedTx = await walletProvider.value.signTransaction(transaction);
     const sig = await connection.sendRawTransaction(signedTx.serialize());
 
-    console.log("Mint:", mintKeypair.publicKey.toBase58());
-    toastStore.success({text: `Token ${tokenData.value.name} has been created.`})
+    trackGoogleTagEvent('Create Token');
+
+    modalsStore.modalData.title = `Token ${tokenName} created successfully`
+    modalsStore.modalData.type = 'create-confirmation'
+    modalsStore.modalData.action = 'confirmation';
+    modalsStore.modalData.item = {mint: mintKeypair.publicKey.toBase58()};
+    modalsStore.modalData.is_open = true;
   } catch (error) {
-    console.error("ERRooooooooR:", error);
+    console.error("ERROR:", error);
   }
 };
 
@@ -396,7 +471,7 @@ watch(() => address.value, async (newVal) => {
   if (newVal?.length) {
     tokenData.value.ownership = newVal;
   }
-}, { immutable: true });
+});
 
 onMounted(async () => {
   if (route.params?.campaign_id !== 'create' && !userStore.isUserAuth) {
@@ -427,6 +502,18 @@ onMounted(async () => {
 
   &__start {
     margin: 32px 0;
+  }
+
+  &__estimate {
+    width: 100%;
+    height: 40px;
+    border-radius: 8px;
+    background: rgba(209, 213, 219, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 20px 0;
+    color: #64748B;
   }
 
   &__estimate {
@@ -525,6 +612,10 @@ onMounted(async () => {
 
 .modal-stop-campaign {
   max-width: 480px;
+}
+
+.create-confirmation {
+  max-width: 500px;
 }
 
 @media (max-width: 1200px) {

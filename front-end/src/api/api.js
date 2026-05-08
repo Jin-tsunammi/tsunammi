@@ -110,6 +110,7 @@ export const GetAllCampaigns = async (params) => apiInstance.get('/campaigns', {
     params: {
         page: params?.page,
         pageSize: params?.pageSize,
+        type: params?.type,
     }
 });
 export const GetAllActiveCampaigns = async (params) => apiInstance.get('/campaigns-summary', {
@@ -148,3 +149,7 @@ export const GetSmartBuyBackHistory = async(params) => apiInstance.get(`/buyback
 export const StopSmartBuyBackTarget = async({id, targetID}) => apiInstance.delete(`/buyback/${id}/targets/${targetID}`);
 export const CreateSmartBuyBackTarget = async(id, data) => apiInstance.post(`/buyback/${id}/targets`, data);
 export const UpdateSmartBuyBackTarget = async({id, targetID, data}) => apiInstance.patch(`/buyback/${id}/targets/${targetID}`, data);
+
+//Upload via Lighthouse
+export const UploadImage = async(formdata) => apiInstance.post(`/upload/image`, formdata);
+export const UploadMetadata = async(data) => apiInstance.post(`/upload/metadata`, data);

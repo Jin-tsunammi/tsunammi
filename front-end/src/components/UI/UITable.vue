@@ -137,11 +137,13 @@ const handleRowClick = (element, index) => {
   flex-direction: column;
 
   &__header {
-    border-bottom: 1px solid #E6E7EB;
-    background: #FFF;
+    border: 1px solid #D1D5DB;
+    background: #F7F7F7;
     display: flex;
     align-items: center;
     height: 36px;
+    border-top-right-radius: 12px;
+    border-top-left-radius: 12px;
 
     &_col {
       width: 100%;
@@ -161,12 +163,14 @@ const handleRowClick = (element, index) => {
     display: flex;
     align-items: center;
     height: 48px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.10);
+    border-inline: 1px solid #D1D5DB;
+    border-bottom: 1px solid #D1D5DB;
     transition: background-color 0.2s;
-    background: #E5E7EB;
+    background: #FFF;
 
     &:last-child {
-      border: none;
+      border-bottom-right-radius: 12px;
+      border-bottom-left-radius: 12px;
     }
 
     &--parent {

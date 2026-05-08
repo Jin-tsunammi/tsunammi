@@ -4,11 +4,7 @@ import {
     CreateNewCEXApi,
     DeleteCEXApi,
     GetAllCEXApi,
-    GetAllProjects,
     GetCEXApiByID,
-    GetProjectByID,
-    GetUser,
-    GetWalletPrivetKeyByID
 } from "../api/api.js";
 import {useToastStore} from "./toastStore.js";
 import {useModalsStore} from "./modalsStore.js";
@@ -79,8 +75,9 @@ export const useCEXApiStore = defineStore('cex', () => {
             await CreateNewCEXApi(data);
 
             await getAllCEXApi();
-            modalStore.closeModal();
-            toastStore.success({text: 'CEX API connected'});
+            modalStore.modalData.title = `API Connection Successful`
+            modalStore.modalData.type = 'create-confirmation'
+            modalStore.modalData.action = 'confirmation';
         } catch (error) {
             console.error(error)
             toastStore.error({text: formatText(error.response?.data)});

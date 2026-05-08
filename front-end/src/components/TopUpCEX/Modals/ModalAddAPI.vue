@@ -36,7 +36,7 @@
             placeholder=""
             label="API Key"
             size="large"
-            :type="isPasswordVisible ? 'text' : 'password'"
+            :is_password="!isPasswordVisible"
           >
             <template #icon-right>
               <button class="password" @click="isPasswordVisible = !isPasswordVisible">
@@ -53,7 +53,7 @@
             placeholder=""
             label="API secret key"
             size="large"
-            :type="isPasswordVisible ? 'text' : 'password'"
+            :is_password="!isPasswordVisible"
           >
             <template #icon-right>
               <button class="password" @click="isPasswordVisible = !isPasswordVisible">
@@ -70,7 +70,7 @@
             placeholder=""
             label="API passphrase"
             size="large"
-            :type="isPasswordVisible ? 'text' : 'password'"
+            :is_password="!isPasswordVisible"
           >
             <template #icon-right>
               <button class="password" @click="isPasswordVisible = !isPasswordVisible">
@@ -149,7 +149,6 @@ import UIButton from "../../UI/UIButton.vue";
 import {useModalsStore} from "../../../store/modalsStore.js";
 import UIBaseInput from "../../UI/UIBaseInput.vue";
 import {computed, ref} from "vue";
-import UISelect from "../../UI/UISelect.vue";
 import SVGEyeOpen from "../../SVG/SVGEyeOpen.vue";
 import SVGEyeCrossed from "../../SVG/SVGEyeCrossed.vue";
 import {useCEXApiStore} from "../../../store/cexStore.js";

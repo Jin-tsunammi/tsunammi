@@ -72,7 +72,6 @@ const mobileTabs = [
 const isPageLoading = ref(true);
 const depositHistory = ref([]);
 const projects = ref([]);
-const selectedTab = ref(mobileTabs[0]);
 
 const openModal = ({type, order_id=null}) => {
   if (type === 'confirmation') {

@@ -108,6 +108,14 @@
         <component class="modal-title-icon" v-if="modalsStore.modalData.icon" :is="modalsStore.modalData.icon"/>
       </template>
       <template #default>
+        <ConfirmationModal
+          class="create-confirmation"
+          v-if="modalsStore.modalData.type === 'create-confirmation'"
+          :additional-text="`Your price adjustment campaign has been created. \n The system is now managing orders to reach the target price levels.`"
+          cancellation-btn-text="Ok"
+          :is-confirmation-btn="false"
+          header-color="success"
+        />
         <ModalAddBudget
           v-if="modalsStore.modalData.type === 'add-budget'"
           v-model="modalAddNewBudget"
@@ -157,7 +165,7 @@ import UIEmptyState from "../../components/UI/UIEmptyState.vue";
 import SVGMonitorDot from "../../components/SVG/SVGMonitorDot.vue";
 import CampaignEstimate from "../../components/MarketMakingPages/TargetPullUp/CampaignEstimate.vue";
 import {useCampaignsStore} from "../../store/campaignsStore.js";
-import {calculateBudget, errorToast} from "../../helpers/index.js";
+import {errorToast, trackGoogleTagEvent} from "../../helpers/index.js";
 import Modals from "../../components/UI/Modals.vue";
 import ConfirmationModal from "../../components/UI/Modals/ConfirmationModal.vue";
 import {useModalsStore} from "../../store/modalsStore.js";
@@ -173,6 +181,19 @@ import {useUserStore} from "../../store/userStore.js";
 import {useHeaderRefresh} from "../../composable/useHeaderRefresh.js";
 import CompletedCampaign from "../../components/MarketMakingPages/CompletedCampaign.vue";
 
+const DEFAULT_ERRORS = {
+  dest_token_mint: '',
+  project_id: '',
+  budget: '',
+  slippage: '',
+  goal_percentage_change: '',
+  parallel_transactions_amount: '',
+  min_transactions_budget: '',
+  max_transactions_budget: '',
+  min_time_between_transactions: '',
+  max_time_between_transactions: '',
+  transaction_speed: '',
+};
 const route = useRoute();
 const router = useRouter();
 const toastStore = useToastStore();
@@ -197,19 +218,7 @@ let jitoInterval = null
 let campaignsInterval = null
 const selectedDex = ref({label: 'Raydium', val: 'raydium'});
 const tokensList = ref([]);
-const errors = ref({
-  dest_token_mint: '',
-  project_id: '',
-  budget: '',
-  slippage: '',
-  goal_percentage_change: '',
-  parallel_transactions_amount: '',
-  min_transactions_budget: '',
-  max_transactions_budget: '',
-  min_time_between_transactions: '',
-  max_time_between_transactions: '',
-  transaction_speed: '',
-});
+const errors = ref(cloneDeep(DEFAULT_ERRORS));
 const jitoData = ref({
   default: 0.000005,
   fast: 0.00001,
@@ -321,6 +330,11 @@ const openModal = async({type, campaign = null}) => {
       modalsStore.modalData.title = '';
       return;
     }
+  }
+
+  if (type === 'create-confirmation') {
+    modalsStore.modalData.title = `Price Strategy Initiated`
+    modalsStore.modalData.action = 'confirmation';
   }
 
   if (type === 'stop-campaign') {
@@ -482,7 +496,6 @@ const fetchEstimate = debounce(async (data) => {
 
 const validateCampaignBeforeStart = () => {
   const campaign = campaignStore.campaign || {};
-  const NANO_IN_SECOND = 1_000_000_000;
 
   const destTokenMint = String(campaign[tokenMint.value] || '').trim();
   const projectId = Number(campaign.project_id);
@@ -496,19 +509,7 @@ const validateCampaignBeforeStart = () => {
   const maxTimeBetweenTransactionsNs = Number(campaign.max_time_between_transactions);
   const transactionSpeed = String(campaign.transaction_speed || '').trim();
 
-  const nextErrors = {
-    dest_token_mint: '',
-    project_id: '',
-    budget: '',
-    slippage: '',
-    goal_percentage_change: '',
-    parallel_transactions_amount: '',
-    min_transactions_budget: '',
-    max_transactions_budget: '',
-    min_time_between_transactions: '',
-    max_time_between_transactions: '',
-    transaction_speed: '',
-  };
+  const nextErrors = cloneDeep(DEFAULT_ERRORS);
 
   if (!destTokenMint) {
     nextErrors.dest_token_mint = 'Token is required';
@@ -595,8 +596,10 @@ const runStartCampaign = async () => {
   const campaign = cloneDeep(campaignStore.campaign);
 
   if (campaignAction.value === 'pull-up') {
+    trackGoogleTagEvent('Start campaign Boost');
     delete campaign.source_token_mint;
   } else {
+    trackGoogleTagEvent('Start campaign Drop');
     delete campaign.dest_token_mint;
   }
 
@@ -633,7 +636,13 @@ const runStartCampaign = async () => {
       campaignEstimate.value = null;
       campaignStore.clearStore();
       await campaignStore.getAllActiveCampaigns(activeCampaignsParams.value);
-      toastStore.success({text: 'Campaign has been created.'});
+      await openModal({type: 'create-confirmation'});
+    }
+
+    if (campaignAction.value === 'pull-up') {
+      trackGoogleTagEvent('Start campaign Boost');
+    } else {
+      trackGoogleTagEvent('Start campaign Drop');
     }
 
     const scrollContainer = targetPullUpRef.value?.parentElement;
@@ -720,6 +729,7 @@ watch(() => [route.name, route.params.campaign_id], async () => {
   isRouteChanged.value = true;
   campaignStore.clearStore();
   campaignEstimate.value = null;
+  errors.value = cloneDeep(DEFAULT_ERRORS);
 
   await handlePageRefresh();
 

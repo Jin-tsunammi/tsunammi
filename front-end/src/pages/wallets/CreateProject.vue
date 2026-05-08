@@ -271,21 +271,6 @@ const handleMenuOptionClick = async(action, project=null) => {
   }
 }
 
-const handleProjectsSort = async(sortBy) => {
-  if (!sortBy) return;
-  if (sortBy !== sortParams.value.sortBy) {
-    sortParams.value.sortBy = sortBy;
-    sortParams.value.sortOrder = 'asc'
-  } else {
-    if (sortParams.value.sortOrder === 'asc') {
-      sortParams.value.sortOrder = 'desc';
-    } else {
-      sortParams.value.sortOrder = 'asc';
-    }
-  }
-  await getProjects();
-}
-
 const handlePageRefresh = async(isRefresh=false) => {
   try {
     isPageLoading.value = true;

@@ -15,6 +15,7 @@
           {{cancellationBtnText}}
         </UIButton>
         <UIButton
+          v-if="isConfirmationBtn"
           :color_type="confirmationBtnStyle"
           @cta="emits('handleConfirmation')"
         >
@@ -43,6 +44,7 @@ defineProps({
   confirmationBtnStyle: {type: String, default: "primary"},
   isLoading: {type: Boolean, default: false},
   isCancel: {type: Boolean, default: true},
+  isConfirmationBtn: {type: Boolean, default: true},
   isCustomContent: {type: Boolean, default: false},
 })
 const emits = defineEmits(["handleConfirmation"]);
@@ -77,6 +79,7 @@ const modalStore = useModalsStore();
   & .addition {
     display: block;
     margin-top: 8px;
+    white-space: pre-line;
   }
 
   &__btns {

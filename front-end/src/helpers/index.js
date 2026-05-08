@@ -71,7 +71,7 @@ export function formatAmount(value, length = 4) {
 
     end = end.replace(/0+$/, '')
 
-    return end ? `${start},${end}` : start
+    return end ? `${start}.${end}` : start
 }
 
 export function errorToast(errorMessage) {
@@ -271,15 +271,24 @@ export const normilizeCampaignStatus = (status) => {
 
     switch (formattedStatus) {
         case 'done':
-            return 'Target Completed';
+            return {status: 'Target Completed', tooltip: 'Target price or growth goal achieved'};
         case 'budget done':
         case 'done budget':
-            return 'Budget Used';
+            return {status: 'Budget Used', tooltip: 'Campaign stopped after the allocated budget was fully spent'};
         case 'stop':
-            return 'Stopped';
+            return {status: 'Stopped', tooltip: 'Campaign manually stopped by user'};
         case 'error':
-            return 'Failed';
+            return {status: 'Failed', tooltip: 'Campaign stopped due to an error or failed execution'};
+        case 'active':
+            return {status: 'Active', tooltip: 'Campaign is currently running'};
         default:
-            return formattedStatus;
+            return {status: formattedStatus, tooltip: ''};
     }
 }
+
+export const trackGoogleTagEvent = (eventName, params = {}) => {
+    window.dataLayer.push({
+        event: eventName,
+        ...params
+    });
+};

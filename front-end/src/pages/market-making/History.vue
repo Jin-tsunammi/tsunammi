@@ -10,9 +10,16 @@
 
       <div v-else class="campaigns__content">
         <div class="campaigns__top">
-          <UISectionTitleWithBorder>
-            {{ 'Campaigns' }}
-          </UISectionTitleWithBorder>
+          <UITabs size="large">
+            <UITab
+              v-for="tab in tabs"
+              :key="tab.val"
+              :is_active="selectedTab.val === tab.val"
+              @click="handleTabSelect(tab)"
+            >
+              {{ tab.label }}
+            </UITab>
+          </UITabs>
         </div>
         <div class="campaigns__table">
           <UITable
@@ -23,45 +30,14 @@
             <template #token_mint_from="{ item }">
               <div class="table__token">
                 <div class="name"><span class="paragraph-small regular">{{ getTokenDetails(item) }}</span></div>
-                <div class="address"><span
-                  class="paragraph-small regular grey">{{
-                    formatWalletAddress(getCampaignTokenMint(item), 7)
-                  }}</span>
-                </div>
               </div>
             </template>
             <template #status="{ item }">
-              <div :class="['table__status paragraph-small regular', campaignStatus(item)]">
-                <div class="indicator"></div>
-                <span>{{ normilizeCampaignStatus(item.status) }}</span>
-              </div>
-            </template>
-            <template #type="{ item }">
-              <div :class="['table__type paragraph-small regular']">
-                <span>{{ campaignType(item) }}</span>
-              </div>
-            </template>
-            <template #project_id="{ item }">
-              <span class="paragraph-small regular">{{ item.project_id }}</span>
+              <UIStatus :status="normilizeCampaignStatus(item.status)" />
             </template>
             <template #budget="{ item }">
               <div class="table__price monospaced-small">
-                <span class="price">{{ toDynamicFix(item.budget) }}</span>
-                <span class="token grey">{{ String(token(item, true)?.symbol || '').toUpperCase() }}</span>
-              </div>
-            </template>
-            <template #goal_percent_change="{ item }">
-              <span class="monospaced-small">{{ toDynamicFix(item.goal_percent_change || 0) }}%</span>
-            </template>
-            <template #goal_price="{ item }">
-              <div class="table__price  monospaced-small">
-                <span class="price">{{ formatSmallNumbers(toDynamicFix(item.goal_price, 6)) }}</span>
-                <span class="token grey">{{ 'SOL' }}</span>
-              </div>
-            </template>
-            <template #current_price="{ item }">
-              <div class="table__price  monospaced-small">
-                <span class="price">{{ formatSmallNumbers(toDynamicFix(item.goal_price, 6)) }}</span>
+                <span class="price">{{ '0' }}</span>
                 <span class="token grey">{{ 'SOL' }}</span>
               </div>
             </template>
@@ -88,70 +64,83 @@ import PageLoading from "../../components/UI/PageLoading.vue";
 import {
   errorToast,
   formatDate,
-  formatSmallNumbers,
-  formatWalletAddress,
   normilizeCampaignStatus,
-  toDynamicFix
 } from "../../helpers/index.js";
 import SVGFolderOpenDot from "../../components/SVG/SVGFolderOpenDot.vue";
 import MobileAdaptsNotification from "../../components/UI/MobileAdaptsNotification.vue";
 import UITable from "../../components/UI/UITable.vue";
-import {useRouter} from "vue-router";
+import {useRoute, useRouter} from "vue-router";
 import {useModalsStore} from "../../store/modalsStore.js";
 import {computed, onMounted, ref, watch} from "vue";
-import {GetAllCampaigns} from "../../api/api.js";
+import {GetAllCampaigns, GetSmartBuyBackHistory} from "../../api/api.js";
 import {useTokensStore} from "../../store/tokensStore.js";
-import UISectionTitleWithBorder from "../../components/UI/UISectionTitleWithBorder.vue";
 import Pagination from "../../components/UI/Pagination.vue";
 import {useToastStore} from "../../store/toastStore.js";
 import {useUserStore} from "../../store/userStore.js";
 import Modals from "../../components/UI/Modals.vue";
 import {useHeaderRefresh} from "../../composable/useHeaderRefresh.js";
+import UITab from "../../components/UI/UITab.vue";
+import UITabs from "../../components/UI/UITabs.vue";
+import UIStatus from "../../components/UI/UIStatus.vue";
+
+const columns = [
+  {label: 'Date', field: 'created_at'},
+  {label: 'Status', field: 'status'},
+  {label: 'Token', field: 'token_mint_from'},
+  {label: 'Budget', field: 'budget'},
+  {label: 'MKT CAP', field: 'mkt_cap'},
+];
+const tabs = [
+  {
+    label: 'Price Boost',
+    val: 'pull_up',
+  },
+  {
+    label: 'Price Drop',
+    val: 'pull_down',
+  },
+  {
+    label: 'Smart Buy/Sell',
+    val: 'smart',
+  }
+]
 
 const router = useRouter();
+const route = useRoute();
 const modalsStore = useModalsStore();
 const tokensStore = useTokensStore();
 const toastStore = useToastStore();
 const userStore = useUserStore();
 const campaigns = ref([]);
+const selectedTab = ref(tabs[0]);
 const isPageLoading = ref(true);
 const currentPage = ref(1);
 const itemsOnPage = 12;
 const totalItems = ref(0);
+
 const totalPages = computed(() => {
   return Math.ceil(totalItems.value / itemsOnPage) || 0;
 })
-
-const columns = [
-  {label: 'Token', field: 'token_mint_from'},
-  {label: 'Project', field: 'project_id'},
-  {label: 'Type', field: 'type'},
-  {label: 'Budget', field: 'budget'},
-  {label: 'Target', field: 'goal_percent_change'},
-  {label: 'Goal price', field: 'goal_price'},
-  {label: 'Current price', field: 'current_price'},
-  {label: 'Status', field: 'status'},
-  {label: 'Created', field: 'created_at'},
-];
-
+const campaignType = computed(() => {
+  return route.query.type || selectedTab.value.val;
+})
 const openCampaign = (campaign) => {
   if (!campaign) return;
 
   if (modalsStore.modalData.is_open) {
     modalsStore.closeModal()
   }
-  router.push({name: 'MarketTransactions', params: {campaign_id: campaign.id}});
+
+  const nextPageName = campaignType.value === 'smart' ? 'SmartBuyBackTransactions' : 'MarketTransactions';
+  router.push({name: nextPageName, params: {campaign_id: campaign.id}, query: {type: route.query.type}});
 }
 
-const token = (campaign, isBudget=false) => {
-  if (!campaign) return null;
-  const type = campaign.type?.name.toLowerCase();
+const handleTabSelect = async(tab) => {
+  if (!tab) return;
 
-  if (type === 'pull up' && isBudget) return {symbol: 'Sol'};
-
-  const mint = getCampaignTokenMint(campaign);
-
-  return tokensStore.solTokensData[mint];
+  selectedTab.value = tab;
+  await router.push({query: {type: tab.val}});
+  await getCampaign();
 }
 
 const getCampaign = async (isRefreshing=false) => {
@@ -159,20 +148,34 @@ const getCampaign = async (isRefreshing=false) => {
     isPageLoading.value = true;
 
     if (userStore.isUserAuth) {
+      const isSmartBuyBackSelected = selectedTab.value?.val === 'smart';
+
       const params = {
         page: currentPage.value,
         pageSize: itemsOnPage,
+        type: isSmartBuyBackSelected ? null : selectedTab.value.val
       }
 
-      const resp = await GetAllCampaigns(params);
+      let resp;
+
+      if (isSmartBuyBackSelected) {
+        resp = await GetSmartBuyBackHistory(params);
+      } else {
+        resp = await GetAllCampaigns(params);
+      }
+
       campaigns.value = resp.data.campaigns;
       totalItems.value = resp.data.total;
       const tokens = [];
       resp.data.campaigns.forEach(campaign => {
-        if (campaign.type?.name?.toLowerCase() === 'pull up') {
-          tokens.push({token_mint: campaign.token_mint_to});
+        if (isSmartBuyBackSelected) {
+          tokens.push({token_mint: campaign.token_mint});
         } else {
-          tokens.push({token_mint: campaign.token_mint_from});
+          if (campaign.type?.name?.toLowerCase() === 'pull up') {
+            tokens.push({token_mint: campaign.token_mint_to});
+          } else {
+            tokens.push({token_mint: campaign.token_mint_from});
+          }
         }
       });
 
@@ -201,30 +204,23 @@ const getCampaignTokenMint = (campaign) => {
 
 const getTokenDetails = (campaign) => {
   if (!campaign) return '';
-  const tokenDetails = token(campaign);
+
+  let mintType;
+  switch (campaignType.value) {
+    case 'smart':
+      mintType = 'token_mint'
+          break;
+    case 'pull_up':
+      mintType = 'token_mint_to';
+      break;
+    default:
+      mintType = 'token_mint_from'
+  }
+  const mint = campaign[mintType];
+  const tokenDetails = tokensStore.solTokensData[mint];
   const tokenName = tokenDetails?.name || '';
   const tokenSymbol = tokenDetails?.symbol || '';
   return `${tokenName} (${tokenSymbol})`;
-}
-
-const campaignStatus = (campaign) => {
-  if (!campaign) return '';
-  const status = campaign.status.replaceAll('_', ' ').toLowerCase();
-
-  switch (status) {
-    case 'in use':
-      return 'active';
-    case 'stop':
-      return 'stopped';
-    default:
-      return status;
-  }
-}
-
-const campaignType = (campaign) => {
-  if (!campaign) return '';
-
-  return campaign.type?.name?.toLowerCase() || '';
 }
 
 const handlePageChange = async (page) => {
@@ -241,6 +237,16 @@ watch(() => userStore.isUserAuth, async(newVal) => {
   }
 })
 onMounted(async () => {
+  if (route.query.type) {
+    const findTab = tabs.find(tab => tab.val === route.query.type);
+
+    if (findTab) {
+      selectedTab.value = findTab;
+    }
+  } else {
+    await router.push({query: {type: selectedTab.value.val}})
+  }
+
   await getCampaign();
 })
 </script>
@@ -248,7 +254,7 @@ onMounted(async () => {
 .campaigns {
   display: flex;
   flex-direction: column;
-  height: fit-content;
+  height: 100%;
 
   &__content {
     height: 100%;
@@ -261,6 +267,16 @@ onMounted(async () => {
     align-items: center;
     justify-content: space-between;
     margin-bottom: 20px;
+    border-bottom: 1px solid #D1D5DB;
+    padding-bottom: 12px;
+
+    & .ui-tab {
+      min-width: 136px;
+    }
+
+    & .ui-tabs.large {
+      padding: 2px;
+    }
   }
 
   &__mobile {
@@ -304,24 +320,12 @@ onMounted(async () => {
     margin-bottom: 20px;
 
     ::v-deep(.table__header_col) {
-      &.token_mint_from {
-        width: calc((200 / 1163) * 100%);
+      &.created_at, &.status {
+        width: calc((220 / 1163) * 100%);
       }
 
-      &.created_at {
-        width: calc((135 / 1163) * 100%);
-      }
-
-      &.project_id, &.goal_percent_change {
-        width: calc((88 / 1163) * 100%);
-      }
-
-      &.type, &.status {
-        width: calc((88 / 1163) * 100%);
-      }
-
-      &.budget, &.goal_price, &.current_price {
-        width: calc((160 / 1163) * 100%);
+      &.token_mint_from, &.budget, &.mkt_cap {
+        width: calc((241 / 1163) * 100%);
       }
     }
 
@@ -336,24 +340,12 @@ onMounted(async () => {
     }
 
     ::v-deep(.table__row_cell) {
-      &.token_mint_from {
-        width: calc((200 / 1163) * 100%);
+      &.created_at, &.status {
+        width: calc((220 / 1163) * 100%);
       }
 
-      &.created_at {
-        width: calc((135 / 1163) * 100%);
-      }
-
-      &.project_id, &.goal_percent_change {
-        width: calc((88 / 1163) * 100%);
-      }
-
-      &.type, &.status {
-        width: calc((88 / 1163) * 100%);
-      }
-
-      &.budget, &.goal_price, &.current_price {
-        width: calc((160 / 1163) * 100%);
+      &.token_mint_from, &.budget, &.mkt_cap {
+        width: calc((241 / 1163) * 100%);
       }
     }
   }
@@ -382,29 +374,14 @@ onMounted(async () => {
 
   & .created_at {
     display: flex;
-    flex-direction: column;
-  }
-
-  &__price {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
     gap: 5px;
-    min-width: 0;
 
     & .price {
-      flex-shrink: 0;
-    }
-
-    & .token {
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      text-wrap: nowrap;
+      color: #030712;
     }
   }
 
-  &__type, &__status {
+  &__status {
     text-transform: capitalize;
   }
 

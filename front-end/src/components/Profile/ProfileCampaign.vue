@@ -18,7 +18,7 @@
       <div class="profile-campaign__details">
         <div :class="['profile-campaign__status', campaign?.status?.toLowerCase()]">
           <div class="color monospaced-small"></div>
-          {{normilizeCampaignStatus(campaign?.status)}}
+          <UIStatus :status="normilizeCampaignStatus(campaign?.status)" :is-background="false"/>
         </div>
 
 <!--        <div class="profile-campaign__spend">-->
@@ -31,7 +31,7 @@
     </div>
 
     <div class="profile-campaign__bottom">
-      <template v-if="normilizeCampaignStatus(campaign?.status) === 'active'">
+      <template v-if="normilizeCampaignStatus(campaign?.status).status.toLowerCase() === 'active'">
         <UIButton color_type="outline" size="large" @cta="emits('handleStop')">
           Stop
         </UIButton>
@@ -51,11 +51,12 @@
 import { computed } from 'vue'
 import UIButton from "../UI/UIButton.vue";
 import UIAvatarShow from "../UI/UIAvatarShow.vue";
-import {normilizeCampaignStatus, toDynamicFix} from "../../helpers/index.js";
+import {normilizeCampaignStatus} from "../../helpers/index.js";
 import {useTokensStore} from "../../store/tokensStore.js";
 import SVGEdit from "../SVG/SVGEdit.vue";
 import {useRoute, useRouter} from "vue-router";
 import {useModalsStore} from "../../store/modalsStore.js";
+import UIStatus from "../UI/UIStatus.vue";
 
 const props = defineProps({
   campaign: { type: Object, default: null },
@@ -96,12 +97,27 @@ const openCampaign = () => {
     modalsStore.closeModal()
   }
 
-  if (route.name === 'MarketSmartBuyback') {
-    router.push({name: 'SmartBuyBackTransactions', params: {campaign_id: props.campaign.id}});
+  let type;
+  let campaign_id;
 
-  } else {
-    router.push({name: 'MarketTransactions', params: {campaign_id: props.campaign.campaign_id}});
+  switch (route.name) {
+    case 'MarketSmartBuyback':
+      type = 'smart';
+      campaign_id = props.campaign.id;
+      break;
+    case 'MarketTargetPullUpCreate':
+      type = 'pull_up'
+      campaign_id = props.campaign.campaign_id;
+      break;
+    case 'MarketTargetDrop':
+      type = 'pull_down';
+      campaign_id = props.campaign.campaign_id;
+      break;
+    default:
+      type = null;
   }
+
+  router.push({name: 'MarketTransactions', params: {campaign_id}, query: {type}});
 }
 </script>
 <style scoped lang="scss">
@@ -175,6 +191,15 @@ const openCampaign = () => {
     align-items: center;
     gap: 9px;
     text-transform: capitalize;
+
+    ::v-deep(.label) {
+      color: #030712;
+      font-size: 14px;
+      font-style: normal;
+      font-weight: 500;
+      line-height: 150%;
+      letter-spacing: 0.07px;
+    }
 
     &.stop, &.error {
       & .color {

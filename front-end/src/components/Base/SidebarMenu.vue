@@ -8,7 +8,7 @@
           :key="category.label"
           class="sidebar-menu__block"
         >
-          <div class="sidebar-menu__block_category" @click="toggleCategory(category)">
+          <div :class="['sidebar-menu__block_category', category.section]" @click="toggleCategory(category)">
             <component v-if="category.icon" :is="category.icon" class="icon"/>
             <span class="paragraph-small">{{category.label}}</span>
             <button :class="{open: !category.is_open}">
@@ -18,15 +18,20 @@
           <div :class="['sidebar-menu__block_pages-container', {hidden: !category.is_open}]">
             <div :class="['sidebar-menu__block_pages']">
               <div class="line"></div>
-              <router-link
+              <template
                 v-for="page in category.pages"
                 :key="page.label"
-                :to="{name: page.name, params: page.params}"
-                :class="['sidebar-menu__block_page', {active: page.children && page.children.includes(route.name)}]"
-                @click="closeMobileSideBar"
               >
-                {{page.label}}
-              </router-link>
+                <router-link
+                  v-if="page.name !== 'documentation'"
+                  :to="{name: page.name, params: page.params}"
+                  :class="['sidebar-menu__block_page', {active: page.children && page.children.includes(route.name)}]"
+                  @click="closeMobileSideBar"
+                >
+                  {{page.label}}
+                </router-link>
+                <a v-else :href="page.link" target="_blank" class="sidebar-menu__block_page">{{page.label}}</a>
+              </template>
             </div>
           </div>
         </div>
@@ -62,6 +67,7 @@ import {useRoute} from "vue-router";
 import SVGTokenIcon from "../SVG/SVGTokenIcon.vue";
 import SVGRocket from "../SVG/SVGRocket.vue";
 import SVGTelegram from "../SVG/SVGTelegram.vue";
+import SVGSidebarOther from "../SVG/SVGSidebarOther.vue";
 
 const sidebarStore = useSidebarStore();
 const route = useRoute();
@@ -69,6 +75,7 @@ const route = useRoute();
 const menu = ref([
   {
     label: 'Token Management',
+    section: 'token',
     icon: markRaw(SVGTokenIcon),
     pages: [
       {
@@ -96,6 +103,7 @@ const menu = ref([
   },
   {
     label: 'Wallet Management',
+    section: 'wallets',
     icon: markRaw(SVGWallet),
     pages: [
       {
@@ -120,6 +128,7 @@ const menu = ref([
   },
   {
     label: 'Market Making',
+    section: 'mm',
     icon: markRaw(SVGRocket),
     pages: [
       {
@@ -145,6 +154,23 @@ const menu = ref([
         name: 'MarketHistory',
         children: ['SmartBuyBackTransactions', 'MarketTransactions']
       },
+    ],
+    is_open: true,
+  },
+  {
+    label: 'Other',
+    section: 'other',
+    icon: markRaw(SVGSidebarOther),
+    pages: [
+      {
+        label: 'Leaderboard',
+        name: 'Leaderboard',
+      },
+      {
+        label: 'Documentation',
+        name: 'documentation',
+        link: 'https://tsunammi.gitbook.io/tsunammi/'
+      }
     ],
     is_open: true,
   },
@@ -190,9 +216,15 @@ const closeMobileSideBar = () => {
       height: 32px;
       padding: 0 12px;
 
-      & .icon {
+      &.wallets .icon {
         ::v-deep(path) {
           fill: #9CA3AF;
+        }
+      }
+
+      &.other .icon {
+        ::v-deep(path) {
+          stroke: #9CA3AF;
         }
       }
 

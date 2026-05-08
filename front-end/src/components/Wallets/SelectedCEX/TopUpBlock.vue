@@ -1,6 +1,6 @@
 <template>
   <div class="selected-cex-top-up">
-    <div class="selected-cex-top-up__content_label top heading-3">Top up wallets from CEX</div>
+    <UISectionTitleWithBorder>Top up wallets from CEX</UISectionTitleWithBorder>
     <div class="selected-cex-top-up__inner">
       <div class="selected-cex-top-up__grid">
         <UIBaseInput
@@ -167,7 +167,8 @@ import {useRouter} from "vue-router";
 import UIGhostButtonsGroup from "../../UI/UIGhostButtonsGroup.vue";
 import {useToastStore} from "../../../store/toastStore.js";
 import {CreateDeposit} from "../../../api/api.js";
-import {formatAmount, formatText, toDynamicFix} from "../../../helpers/index.js";
+import {formatText, toDynamicFix, trackGoogleTagEvent} from "../../../helpers/index.js";
+import UISectionTitleWithBorder from "../../UI/UISectionTitleWithBorder.vue";
 
 const props = defineProps({
   projects: {type: Array, default: []},
@@ -344,6 +345,7 @@ function isFieldsError() {
 }
 
 const handleTopUp = async() => {
+
   if (isFieldsError()) return;
 
   try {
@@ -355,6 +357,7 @@ const handleTopUp = async() => {
       quantity: Number(cexData.value.quantity)
     }
     const resp = await CreateDeposit(data);
+    trackGoogleTagEvent('Connect CEX API');
 
     emits("openModal", {type: 'confirmation', order_id: resp?.data?.order_id})
 

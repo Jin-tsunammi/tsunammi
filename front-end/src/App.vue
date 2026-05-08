@@ -9,9 +9,6 @@
         <div :class="['app__content', {padding: isPadding}]">
           <RouterView/>
         </div>
-        <div class="app__content_footer paragraph-small regular">
-          <span>@ {{ currentYear }} Tsunammi. All rights reserved</span>
-        </div>
       </div>
     </div>
     <Toast/>
@@ -28,9 +25,6 @@ import DashboardHeader from "./components/Base/DashboardHeader.vue";
 
 const isCookiesVisible = ref(false);
 const route = useRoute();
-const currentYear = computed(() => {
-  return new Date().getFullYear();
-})
 const isPadding = computed(() => {
   return route.name !== 'Home'
 })
@@ -108,17 +102,6 @@ onMounted(() => {
 
     &.padding {
       padding: 24px 0;
-    }
-
-    &_footer {
-      margin: auto 0 0;
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-top: 1px solid #D1D5DB;
-      padding: 14px 0;
-      color: #9CA3AF;
     }
   }
 }

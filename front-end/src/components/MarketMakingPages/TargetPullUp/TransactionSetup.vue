@@ -209,14 +209,11 @@ import UITabs from "../../UI/UITabs.vue";
 import UITab from "../../UI/UITab.vue";
 import UIRoundToggle from "../../UI/UIRoundToggle.vue";
 import UIGhostButtonsGroup from "../../UI/UIGhostButtonsGroup.vue";
-import SVGSmallArrowDown from "../../SVG/SVGSmallArrowDown.vue";
 import UIDropdown from "../../UI/UIDropdown.vue";
 import {useCampaignsStore} from "../../../store/campaignsStore.js";
-import {OnClickOutside} from "@vueuse/components";
 import SVGPlus from "../../SVG/SVGPlus.vue";
 import UIButton from "../../UI/UIButton.vue";
 import {useRouter} from "vue-router";
-import {useProjectsStore} from "../../../store/projectsStore.js";
 import {calculateBudget, toDynamicFix} from "../../../helpers/index.js";
 import {NANO_IN_SECOND} from "../../../constants/const.js";
 import UIGhostSelector from "../../UI/UIGhostSelector.vue";
@@ -251,7 +248,7 @@ const selectedAmountType = ref({
 });
 const tokenSymbol = computed(() => {
   if (props.campaignAction === 'pull-up') return 'SOL';
-  else return String(campaignStore.selectedToken?.symbol).toUpperCase() || '';
+  else return campaignStore.selectedToken?.symbol ? String(campaignStore.selectedToken?.symbol).toUpperCase() : '$TOKEN';
 })
 const jitoOptions = ['default', 'fast', 'extra'];
 const validatorTipOptions = ['low', 'medium', 'high'];

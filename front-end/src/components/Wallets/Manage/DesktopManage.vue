@@ -126,7 +126,7 @@
           </UIButton>
         </div>
       </div>
-      <UITable :columns="columns" :rows="isPageLoading ? skeletonRows : rows" :is-table-nested="true">
+      <UITable :columns="columns" :rows="isPageLoading ? skeletonRows : rows">
         <template #col_frozen_money="{ item }">
           <div class="table__head frozen_money">
             <div class="tooltip-wrapper" @mouseenter="toggleUIKit('table-balance')" @mouseleave="toggleUIKit('table-balance')">

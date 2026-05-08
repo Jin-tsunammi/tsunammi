@@ -26,6 +26,14 @@
           @handle-confirmation="handleCEXApiDelete"
           :is-loading="isDeleting"
         />
+        <ConfirmationModal
+          class="create-confirmation"
+          v-if="modalsStore.modalData.type === 'create-confirmation'"
+          cancellation-btn-text="Ok"
+          additional-text="Your exchange account has been linked successfully. You can now start managing your liquidity."
+          :is-confirmation-btn="false"
+          header-color="success"
+        />
         <ModalAddAPI v-if="modalsStore.modalData.type === 'wallet-cex-add-api'" :server_ip="serverIP"/>
       </Modals>
     </div>
@@ -35,7 +43,6 @@
 import {computed, onBeforeUnmount, onMounted, ref, watch} from 'vue';
 import {useModalsStore} from "../../store/modalsStore.js";
 import Modals from "../../components/UI/Modals.vue";
-import Pagination from "../../components/UI/Pagination.vue";
 import ModalAddAPI from "../../components/TopUpCEX/Modals/ModalAddAPI.vue";
 import DesktopTopUp from "../../components/Wallets/TopUpCex/DesktopTopUp.vue";
 import {useCEXApiStore} from "../../store/cexStore.js";
@@ -43,7 +50,6 @@ import ConfirmationModal from "../../components/UI/Modals/ConfirmationModal.vue"
 import {GetServerIP} from "../../api/api.js";
 import PageLoading from "../../components/UI/PageLoading.vue";
 import MobileAdaptsNotification from "../../components/UI/MobileAdaptsNotification.vue";
-import {errorToast} from "../../helpers/index.js";
 import {useUserStore} from "../../store/userStore.js";
 import {useHeaderRefresh} from "../../composable/useHeaderRefresh.js";
 

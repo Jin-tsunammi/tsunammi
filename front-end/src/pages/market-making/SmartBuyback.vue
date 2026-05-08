@@ -86,6 +86,8 @@
                   :campaign="campaign"
                 />
               </div>
+
+              <router-link class="see-all paragraph-small medium" :to="{name: 'MarketHistory', query: {type: 'smart'}}">See all history</router-link>
             </div>
           </div>
         </div>
@@ -98,6 +100,14 @@
         <component class="modal-title-icon" v-if="modalsStore.modalData.icon" :is="modalsStore.modalData.icon"/>
       </template>
       <template #default>
+        <ConfirmationModal
+          class="create-confirmation"
+          v-if="modalsStore.modalData.type === 'create-confirmation'"
+          :additional-text="`Your Smart Buy/Sell campaign has been created. \n The algorithm is now monitoring the market for the best execution.`"
+          cancellation-btn-text="Ok"
+          :is-confirmation-btn="false"
+          header-color="success"
+        />
         <ModalAddBudget
           v-if="modalsStore.modalData.type === 'add-budget'"
           v-model="modalAddNewBudget"
@@ -129,7 +139,7 @@ import ProfileCampaign from "../../components/Profile/ProfileCampaign.vue";
 import {useRoute, useRouter} from "vue-router";
 import UIEmptyState from "../../components/UI/UIEmptyState.vue";
 import SVGMonitorDot from "../../components/SVG/SVGMonitorDot.vue";
-import {errorToast} from "../../helpers/index.js";
+import {errorToast, trackGoogleTagEvent} from "../../helpers/index.js";
 import Modals from "../../components/UI/Modals.vue";
 import ConfirmationModal from "../../components/UI/Modals/ConfirmationModal.vue";
 import {useModalsStore} from "../../store/modalsStore.js";
@@ -146,7 +156,6 @@ import Targets from "../../components/MarketMakingPages/SmartBuyBack/Targets.vue
 import SmartBuyBackTop from "../../components/MarketMakingPages/SmartBuyBack/SmartBuyBackTop.vue";
 import {useSmartCampaignsStore} from "../../store/smartCampaignsStore.js";
 import CompletedCampaign from "../../components/MarketMakingPages/CompletedCampaign.vue";
-import axios from "axios";
 import {SOLANA_MINT} from "../../constants/const.js";
 
 const DEFAULT_TARGET_ERROR = {
@@ -252,12 +261,17 @@ const debouncedSearch = debounce((val) => {
   }
 }, 400)
 
-const openModal = async ({type, campaign = null}) => {
+const openModal = ({type, campaign = null}) => {
   modalsStore.modalData.type = type;
 
   if (type === 'stop-campaign') {
     modalsStore.modalData.title = 'Stop active campaign?'
     modalsStore.modalData.action = 'confirmation'
+  }
+
+  if (type === 'create-confirmation') {
+    modalsStore.modalData.title = `Smart Strategy Deployed`
+    modalsStore.modalData.action = 'confirmation';
   }
 
   if (campaign) {
@@ -297,7 +311,7 @@ const handlePageRefresh = async (isRefreshing = false, isAuth = false) => {
       await tokensStore.updateSolTokensData(sourceToken, 'source_token_mint');
     } else {
       await smartCampaignStore.getAllActiveSmartCampaigns();
-      await smartCampaignStore.getAllSmartCampaigns();
+      await smartCampaignStore.getAllSmartCampaigns({page: 1, pageSize: 3});
     }
     await getProjects();
 
@@ -574,8 +588,11 @@ const runStartCampaign = async() => {
 
       await smartCampaignStore.getAllActiveSmartCampaigns();
       await smartCampaignStore.getAllSmartCampaigns();
-      toastStore.success({text: 'Campaign has been created.'});
+
+      openModal({type: 'create-confirmation'});
     }
+
+    trackGoogleTagEvent('Start campaign Buyback');
 
     const scrollContainer = smartBuyBack.value?.parentElement;
     if (scrollContainer) {
@@ -590,7 +607,6 @@ const runStartCampaign = async() => {
 }
 
 const handleStartCampaignClick = async () => {
-
   const isValid = validateCampaignBeforeStart();
   if (!isValid) return;
 
@@ -678,13 +694,6 @@ onBeforeUnmount(() => {
     margin-top: 32px;
   }
 
-  &__all-campaigns, &__active-campaigns {
-    & .smart-buy-back__desktop_campaigns {
-      max-height: 352px;
-      overflow: scroll;
-    }
-  }
-
   &__desktop {
     width: 100%;
     display: flex;
@@ -713,6 +722,14 @@ onBeforeUnmount(() => {
         display: flex;
         flex-direction: column;
         gap: 12px;
+      }
+
+      & .see-all {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 30px auto 0;
+        color: #374151;
       }
     }
   }

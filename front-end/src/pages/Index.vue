@@ -152,7 +152,7 @@ const topContent = [
         params: {campaign_id: 'create'},
       },
       {
-        title: 'Smart Buyback',
+        title: 'Smart Buy/Sell',
         text: 'Automatically support your token with intelligent buybacks.',
         page: 'MarketSmartBuyback',
         params: {campaign_id: 'create'},

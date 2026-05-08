@@ -1,7 +1,6 @@
 <template>
 <div class="selected-cex-desktop">
-  <div class="selected-cex-desktop__content_label history heading-3">History</div>
-
+  <UISectionTitleWithBorder class="history">History</UISectionTitleWithBorder>
   <div v-if="!rows.length" class="selected-cex-desktop__empty">
     <SVGClockFading />
     <div class="selected-cex-desktop__empty_title paragraph-medium bold">No top-up history yet</div>
@@ -66,6 +65,7 @@ import {formatAmount, formatDate, formatWalletAddress} from "../../../helpers/in
 import {computed, ref} from "vue";
 import SVGClockFading from "../../SVG/SVGClockFading.vue";
 import {SOL_SCAN_BASE_URL} from "../../../constants/const.js";
+import UISectionTitleWithBorder from "../../UI/UISectionTitleWithBorder.vue";
 
 defineProps({
   columns: {type: Array, default: []},
@@ -112,6 +112,10 @@ const handleStatusCheck = (project, isClass=false) => {
   flex-direction: column;
   flex-grow: 1;
 
+  & .history {
+    margin-top: 32px;
+  }
+
   & .black-2 {
     color: #374151;
   }
@@ -128,10 +132,6 @@ const handleStatusCheck = (project, isClass=false) => {
 
       &.top {
         max-width: 668px;
-      }
-
-      &.history {
-        margin-top: 32px;
       }
 
       &::after {

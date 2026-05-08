@@ -10,6 +10,7 @@
 
       <input
         v-model="inputVal"
+        :type="is_password ? 'password' : 'text'"
         :id="label || ''"
         :step="step"
         :maxlength="maxLength"
@@ -28,7 +29,7 @@
     <div v-if="hasBottomContent" class="base-input__bottom">
       <div class="base-input__bottom_left">
         <span v-if="errorMessage" class="base-input__error paragraph-mini">{{errorMessage}}</span>
-        <span v-else-if="!errorMessage && bottomTextLeft">{{bottomTextLeft}}</span>
+        <span v-else-if="!errorMessage && bottomTextLeft" class="error">{{bottomTextLeft}}</span>
         <slot v-else name="bottom-left" />
       </div>
       <div v-if="$slots['bottom-right']" class="base-input__bottom_right">
@@ -51,6 +52,7 @@ const props = defineProps({
   topAddText: {type: String, default: ''},
   bottomTextLeft: {type: String, default: ''},
   is_readonly: {type: Boolean, default: false},
+  is_password: {type: Boolean, default: false},
   is_disabled: {type: Boolean, default: false},
   is_dot_allowed: {type: Boolean, default: true},
   size: {type: String, default: 'regular'}, // regular | large | small | mini
@@ -226,6 +228,10 @@ function handleInput(event) {
 
     &_right {
       margin-left: auto;
+    }
+
+    & span {
+      white-space: pre-line;
     }
   }
 

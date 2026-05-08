@@ -69,11 +69,10 @@ export const router = createRouter({
             name: 'MarketTransactions',
             component: () => import("../pages/market-making/Transactions.vue"),
         },
-        ,
         {
             path: '/market-making/buyback-transactions/:campaign_id',
             name: 'SmartBuyBackTransactions',
-            component: () => import("../pages/market-making/SmartBuyBackTransactions.vue"),
+            component: () => import("../pages/market-making/Transactions.vue"),
         },
 
         // Token
@@ -103,6 +102,12 @@ export const router = createRouter({
             component: () => import("../pages/token/History.vue"),
         },
 
+        //Other
+        {
+            path: '/leaderboard',
+            name: 'Leaderboard',
+            component: () => import("../pages/other/Leaderboard.vue"),
+        },
         //Not found
         {
             path: '/:pathMatch(.*)*',

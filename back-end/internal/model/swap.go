@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"math/big"
 	"mm/pkg/mtype"
 	"time"
@@ -11,14 +12,14 @@ import (
 )
 
 const (
-	StatusInUse             = "in_use"
-	StatusDone              = "done"
-	StatusBudgetDone        = "budget_done"
-	StatusInsufficientFunds = "insufficient_funds"
-	StatusStop              = "stop"
-	StatusError             = "error"
-	TargetUpTaskType        = "up"
-	TargetDownTaskType      = "down"
+	// StatusInUse             = "in_use"
+	// StatusDone              = "done"
+	// StatusBudgetDone        = "budget_done"
+	// StatusInsufficientFunds = "insufficient_funds"
+	// StatusStop              = "stop"
+	// StatusError             = "error"
+	TargetUpTaskType   = "pull_up"
+	TargetDownTaskType = "pull_down"
 )
 
 type TransactionSpeed string
@@ -64,7 +65,7 @@ type SwapCampaign struct {
 	StartedPrice               mtype.BigRat     `bun:"started_price" json:"started_price" swaggertype:"string"`
 	GoalPrice                  mtype.BigRat     `bun:"goal_price" json:"goal_price" swaggertype:"string"`
 	CurrentPrice               mtype.BigRat     `bun:"-" json:"current_price" swaggertype:"string"`
-	Status                     string           `bun:"status" json:"status"`
+	Status                     SwapStatus       `bun:"status" json:"status"`
 	ParallelTransactionsAmount int              `bun:"parallel_transactions_amount" json:"parallel_transactions_amount"`
 	MinTransactionsBudget      float64          `bun:"min_transactions_budget" json:"min_transactions_budget"`
 	MaxTransactionsBudget      float64          `bun:"max_transactions_budget" json:"max_transactions_budget"`
@@ -172,7 +173,7 @@ type SwapTransaction struct {
 	AddressTo       string       `bun:"address_to" json:"address_to"`
 	AmountTokenFrom mtype.BigRat `bun:"amount_token_from" json:"amount_token_from" swaggertype:"string"`
 	AmountTokenTo   mtype.BigRat `bun:"amount_token_to" json:"amount_token_to" swaggertype:"string"`
-	Status          string       `bun:"status" json:"status"`
+	Status          SwapStatus   `bun:"status" json:"status"`
 	Message         string       `bun:"message" json:"message"`
 	DebugMessage    *string      `bun:"debug_message,nullzero" json:"debug_message,omitempty"`
 	CreatedAt       time.Time    `bun:"created_at" json:"created_at"`
@@ -220,9 +221,10 @@ type PriorityFees struct {
 	High   float64 `json:"high"`
 }
 type TargetPullEstimateResponse struct {
-	BudgetSOL    float64      `json:"budget_sol"`
-	TipSOL       float64      `json:"tip_sol"`
-	RentSOl      float64      `json:"rent_sol"`
+	// JitoTipSOL   float64      `json:"jito_tip_sol"`
+	Budget       float64      `json:"budget"`
+	PoolFee      float64      `json:"pool_fee_sol"`
+	Rent         float64      `json:"rent_sol"`
 	PriorityFees PriorityFees `json:"priority_fees"`
 }
 
@@ -250,4 +252,37 @@ type TipFloorSOL struct {
 	Default float64 `json:"default" example:"0.000005"`
 	Fast    float64 `json:"fast" example:"0.00001"`
 	Extra   float64 `json:"extra" example:"0.0002"`
+}
+
+type CampaignsSummaryRequest struct {
+	Page     int        `query:"page"`
+	PageSize int        `query:"pageSize"`
+	Status   SwapStatus `query:"status"`
+	Type     string     `query:"type"`
+}
+
+func (r *CampaignsSummaryRequest) Validate() error {
+	if (r.Page == 0) != (r.PageSize == 0) {
+		return fmt.Errorf("page and pageSize must be provided together")
+	}
+	if r.Page < 0 {
+		return fmt.Errorf("page must be greater than 0")
+	}
+	if r.PageSize < 1 || r.PageSize > 100 {
+		if r.PageSize != 0 {
+			return fmt.Errorf("pageSize must be between 1 and 100")
+		}
+	}
+	if r.Status != "" {
+		switch r.Status {
+		case SwapStatusActive, SwapStatusDone, SwapStatusTargetCompleted, SwapStatusBudgetDone,
+			SwapStatusInsufficientFunds, SwapStatusStop, SwapStatusError:
+		default:
+			return fmt.Errorf("invalid status: %s", r.Status)
+		}
+	}
+	if r.Type != "" && r.Type != TargetUpTaskType && r.Type != TargetDownTaskType {
+		return fmt.Errorf("invalid type: %s", r.Type)
+	}
+	return nil
 }

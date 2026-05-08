@@ -18,9 +18,12 @@ import (
 var ProgramID = pump_bonding.ProgramID
 var FeeProgramID = solana.MustPublicKeyFromBase58("pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ")
 var GlobalConfigPubkey = solana.MustPublicKeyFromBase58("4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf")
+var MplTokenMetadataProgramID = solana.MustPublicKeyFromBase58("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s")
+var MayhemProgramID = solana.MustPublicKeyFromBase58("MAyhSmzXzV1pTf7LsNkrNwkWKTo4ougAJ1PPg47MD4e")
 
 type Global = pump_bonding.Global
 type BondingCurve = pump_bonding.BondingCurve
+type FeeConfig = pump_bonding.FeeConfig
 
 func ParseAccount_Global(accountData []byte) (*Global, error) {
 	return pump_bonding.ParseAccount_Global(accountData)
@@ -28,6 +31,10 @@ func ParseAccount_Global(accountData []byte) (*Global, error) {
 
 func ParseAccount_BondingCurve(accountData []byte) (*BondingCurve, error) {
 	return pump_bonding.ParseAccount_BondingCurve(accountData)
+}
+
+func ParseAccount_FeeConfig(accountData []byte) (*FeeConfig, error) {
+	return pump_bonding.ParseAccount_FeeConfig(accountData)
 }
 
 type PoolStateWithReserve struct {
@@ -46,6 +53,10 @@ type SwapParams struct {
 	BondingCurveID          solana.PublicKey
 	BondingCurveV2          solana.PublicKey
 	Mint                    solana.PublicKey
+	VirtualTokenReserves    uint64
+	VirtualSolReserves      uint64
+	ProtocolFeeBps          uint64
+	CreatorFeeBps           uint64
 	FeeRecipient            solana.PublicKey
 	AssociatedBondingCurve  solana.PublicKey
 	AssociatedUserAccount   solana.PublicKey
@@ -211,6 +222,10 @@ func FetchBondingSwapParams(
 		BondingCurveID:          bondingCurveID,
 		BondingCurveV2:          bondingCurveV2,
 		Mint:                    mint,
+		VirtualTokenReserves:    bondingCurve.VirtualTokenReserves,
+		VirtualSolReserves:      bondingCurve.VirtualSolReserves,
+		ProtocolFeeBps:          globalState.FeeBasisPoints,
+		CreatorFeeBps:           globalState.CreatorFeeBasisPoints,
 		FeeRecipient:            globalState.FeeRecipient,
 		AssociatedBondingCurve:  associatedBondingCurve,
 		AssociatedUserAccount:   associatedUserAccount,
@@ -315,4 +330,35 @@ func FindBondingCurveV2(mint solana.PublicKey) (solana.PublicKey, uint8, error) 
 	}
 
 	return addr, bump, nil
+}
+
+func FindMintAuthority() (solana.PublicKey, uint8, error) {
+	return solana.FindProgramAddress(
+		[][]byte{
+			[]byte("mint-authority"),
+		},
+		ProgramID,
+	)
+}
+
+func FindBondingCurve(mint solana.PublicKey) (solana.PublicKey, uint8, error) {
+	return solana.FindProgramAddress(
+		[][]byte{
+			[]byte("bonding-curve"),
+			mint.Bytes(),
+		},
+		ProgramID,
+	)
+}
+
+func FindMayhemGlobalParams() (solana.PublicKey, uint8, error) {
+	return solana.FindProgramAddress([][]byte{[]byte("global-params")}, MayhemProgramID)
+}
+
+func FindMayhemSolVault() (solana.PublicKey, uint8, error) {
+	return solana.FindProgramAddress([][]byte{[]byte("sol-vault")}, MayhemProgramID)
+}
+
+func FindMayhemState(mint solana.PublicKey) (solana.PublicKey, uint8, error) {
+	return solana.FindProgramAddress([][]byte{[]byte("mayhem-state"), mint.Bytes()}, MayhemProgramID)
 }

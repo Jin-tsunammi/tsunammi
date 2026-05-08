@@ -5,6 +5,7 @@ import (
 	"mm/internal/client/helius"
 	"mm/internal/client/jito"
 	"mm/internal/client/kucoinapi"
+	"mm/internal/client/lighthouse"
 	"mm/internal/client/pumpfun"
 	pumpAMM "mm/internal/client/pumpfun/amm"
 	pumpBonding "mm/internal/client/pumpfun/bonding"
@@ -65,6 +66,7 @@ func Build() *fx.App {
 		solanarpc.Module(),
 		solanaws.Module(),
 		helius.Module(),
+		lighthouse.Module(),
 
 		pumpfun.Module(),
 		pumpAMM.Module(),

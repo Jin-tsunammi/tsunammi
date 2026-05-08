@@ -127,12 +127,12 @@ func (a *AccountRepository) FindAllByUserID(ctx context.Context, parsedPage, par
 	return accounts, total, nil
 }
 
-func (a *AccountRepository) FindAllOlderThanByStatus(ctx context.Context, t time.Duration, status model.Status) ([]model.Account, error) {
+func (a *AccountRepository) FindAllOlderThanByStatus(ctx context.Context, t time.Duration, status model.AccountStatus) ([]model.Account, error) {
 	accs := make([]accountWithExchange, 0)
 
 	thresholdTime := time.Now().Add(-t)
 
-	err := a.newAccountByStatus([]model.Status{status}).
+	err := a.newAccountByStatus([]model.AccountStatus{status}).
 		Where("a.created_at < ?", thresholdTime).
 		Group("a.id", "e.id").
 		Scan(ctx, &accs)
@@ -175,7 +175,7 @@ type accountWithExchange struct {
 	DepositBalance float64
 }
 
-func (a *AccountRepository) newAccountByStatus(statuses []model.Status) *bun.SelectQuery {
+func (a *AccountRepository) newAccountByStatus(statuses []model.AccountStatus) *bun.SelectQuery {
 	query := a.DB.NewSelect().
 		Model((*model.Account)(nil)).
 		Column("a.*").

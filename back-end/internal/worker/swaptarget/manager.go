@@ -64,7 +64,7 @@ type SwapTargetManager struct {
 }
 
 type campaignRepository interface {
-	UpdateStatusByID(ctx context.Context, status string, campaignID uuid.UUID) error
+	UpdateStatusByID(ctx context.Context, status model.SwapStatus, campaignID uuid.UUID) error
 	UpdateDoneIfNoPendingTransactions(ctx context.Context, campaignID uuid.UUID) (bool, error)
 }
 
@@ -134,24 +134,24 @@ func (m *SwapTargetManager) runTarget(campaignID uuid.UUID, parallelTransactions
 
 	switch {
 	case err == nil:
-		if statusErr := m.campaignRepository.UpdateStatusByID(ctx, model.StatusDone, campaignID); statusErr != nil {
+		if statusErr := m.campaignRepository.UpdateStatusByID(ctx, model.SwapStatusTargetCompleted, campaignID); statusErr != nil {
 			m.logger.Error("failed to update campaign status", zap.Error(statusErr))
 		}
 	case errors.Is(err, targetStoppedError):
-		if statusErr := m.campaignRepository.UpdateStatusByID(ctx, model.StatusStop, campaignID); statusErr != nil {
+		if statusErr := m.campaignRepository.UpdateStatusByID(ctx, model.SwapStatusStop, campaignID); statusErr != nil {
 			m.logger.Error("failed to update campaign status", zap.Error(statusErr))
 		}
 	case errors.Is(err, swaperror.BudgetExceededError):
-		if statusErr := m.campaignRepository.UpdateStatusByID(ctx, model.StatusBudgetDone, campaignID); statusErr != nil {
+		if statusErr := m.campaignRepository.UpdateStatusByID(ctx, model.SwapStatusBudgetDone, campaignID); statusErr != nil {
 			m.logger.Error("failed to update campaign status", zap.Error(statusErr))
 		}
 	case errors.Is(err, swaperror.ErrInsufficientFunds), errors.Is(err, pumpBonding.NotEnoughTokensToSellError):
-		if statusErr := m.campaignRepository.UpdateStatusByID(ctx, model.StatusInsufficientFunds, campaignID); statusErr != nil {
+		if statusErr := m.campaignRepository.UpdateStatusByID(ctx, model.SwapStatusInsufficientFunds, campaignID); statusErr != nil {
 			m.logger.Error("failed to update campaign status", zap.Error(statusErr))
 		}
 	default:
 		m.logger.Error("execute target failed", zap.Error(err))
-		if statusErr := m.campaignRepository.UpdateStatusByID(ctx, model.StatusError, campaignID); statusErr != nil {
+		if statusErr := m.campaignRepository.UpdateStatusByID(ctx, model.SwapStatusError, campaignID); statusErr != nil {
 			m.logger.Error("failed to update campaign status", zap.Error(statusErr))
 		}
 	}

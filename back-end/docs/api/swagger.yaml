@@ -47,7 +47,7 @@ definitions:
         type: string
       status:
         allOf:
-        - $ref: '#/definitions/model.Status'
+        - $ref: '#/definitions/model.AccountStatus'
         example: active
       user_id:
         example: 1234567890
@@ -78,7 +78,7 @@ definitions:
         type: string
       status:
         allOf:
-        - $ref: '#/definitions/model.Status'
+        - $ref: '#/definitions/model.AccountStatus'
         example: active
       total_deposits_sol:
         example: 1000.294
@@ -90,6 +90,18 @@ definitions:
         example: 25
         type: integer
     type: object
+  model.AccountStatus:
+    enum:
+    - ACTIVE
+    - PENDING
+    - INACTIVE
+    - DELETED
+    type: string
+    x-enum-varnames:
+    - AccountStatusActive
+    - AccountStatusPending
+    - AccountStatusInactive
+    - AccountStatusDeleted
   model.AddExchangeAccountReq:
     properties:
       api_key:
@@ -109,6 +121,24 @@ definitions:
     - passphrase
     - secret_key
     type: object
+  model.BuybackStatus:
+    enum:
+    - ACTIVE
+    - SCHEDULED
+    - DONE
+    - ERROR
+    - BUDGET_DONE
+    - INSUFFICIENT_FUNDS
+    - STOP
+    type: string
+    x-enum-varnames:
+    - BuybackStatusActive
+    - BuybackStatusScheduled
+    - BuybackStatusDone
+    - BuybackStatusError
+    - BuybackStatusBudgetDone
+    - BuybackStatusInsufficientFunds
+    - BuybackStatusStop
   model.BuybackTransaction:
     properties:
       address_from:
@@ -132,7 +162,7 @@ definitions:
       pool_id:
         type: string
       status:
-        type: string
+        $ref: '#/definitions/model.BuybackStatus'
       target_id:
         type: string
       token_mint_from:
@@ -521,6 +551,78 @@ definitions:
           $ref: '#/definitions/model.WalletResponse'
         type: array
     type: object
+  model.PumpfunEstimateCreateRequest:
+    properties:
+      buy_in_sol:
+        type: number
+      owner:
+        type: string
+      wallet_buys:
+        items:
+          $ref: '#/definitions/model.WalletBuyConfig'
+        type: array
+    type: object
+  model.PumpfunEstimateCreateResponse:
+    properties:
+      creation_fee_sol:
+        type: number
+      jito_tip_sol:
+        type: number
+      priority_fee_sol:
+        type: number
+      pumpfun_commission_sol:
+        type: number
+      total_tokens_out:
+        type: number
+    type: object
+  model.PumpfunLaunchStatus:
+    enum:
+    - PENDING
+    - SUCCESS
+    - FAILED
+    type: string
+    x-enum-varnames:
+    - PumpfunLaunchStatusPending
+    - PumpfunLaunchStatusSuccess
+    - PumpfunLaunchStatusFailed
+  model.PumpfunPrepareCreateTxResponse:
+    properties:
+      buy_transaction:
+        description: base64 encoded, unsigned; empty when owner buy is zero
+        type: string
+      create_transaction:
+        description: base64 encoded, partially signed (mint only); contains Jito tip
+        type: string
+      id:
+        type: string
+      mint_pubkey:
+        type: string
+    type: object
+  model.PumpfunProcessCreateRequest:
+    properties:
+      mint_pubkey:
+        type: string
+      signed_buy_tx:
+        description: base64 encoded, owner-signed; required when buy_transaction is
+          not empty
+        type: string
+      signed_create_tx:
+        description: base64 encoded full signed tx
+        type: string
+      tx_id:
+        type: string
+    type: object
+  model.PumpfunProcessCreateResponse:
+    properties:
+      mint_pubkey:
+        type: string
+      signatures:
+        items:
+          type: string
+        type: array
+      status:
+        $ref: '#/definitions/model.PumpfunLaunchStatus'
+    type: object
   model.SendCode:
     properties:
       email:
@@ -569,7 +671,7 @@ definitions:
       provider_id:
         $ref: '#/definitions/model.SwapProviderID'
       status:
-        type: string
+        $ref: '#/definitions/model.BuybackStatus'
       token_mint:
         type: string
       updated_at:
@@ -589,11 +691,11 @@ definitions:
         type: string
       max_time_between_transactions:
         type: integer
-      max_transactions_budget:
+      max_transaction_amount:
         type: string
       min_time_between_transactions:
         type: integer
-      min_transactions_budget:
+      min_transaction_amount:
         type: string
       parallel_transactions_amount:
         type: integer
@@ -606,7 +708,7 @@ definitions:
       start_at:
         type: string
       status:
-        type: string
+        $ref: '#/definitions/model.BuybackStatus'
       target_price:
         type: string
       transaction_speed:
@@ -633,7 +735,7 @@ definitions:
       provider_id:
         $ref: '#/definitions/model.SwapProviderID'
       status:
-        type: string
+        $ref: '#/definitions/model.BuybackStatus'
       targets:
         items:
           $ref: '#/definitions/model.SmartBuybackCampaignTarget'
@@ -655,26 +757,6 @@ definitions:
     - publicAddress
     - signedMessage
     type: object
-  model.Status:
-    enum:
-    - active
-    - inactive
-    - pending
-    - deleted
-    - pending
-    - success
-    - creation_pending
-    - import_pending
-    type: string
-    x-enum-varnames:
-    - AccountActive
-    - AccountInactive
-    - AccountPending
-    - AccountDeleted
-    - DefaultAccountStatus
-    - Success
-    - CreationPending
-    - ImportPending
   model.SwapCampaign:
     properties:
       budget:
@@ -712,7 +794,7 @@ definitions:
       started_price:
         type: string
       status:
-        type: string
+        $ref: '#/definitions/model.SwapStatus'
       token_mint_from:
         type: string
       token_mint_to:
@@ -735,6 +817,24 @@ definitions:
     x-enum-varnames:
     - SwapProviderRaydium
     - SwapProviderPumpfun
+  model.SwapStatus:
+    enum:
+    - ACTIVE
+    - DONE
+    - TARGET_COMPLETED
+    - BUDGET_DONE
+    - INSUFFICIENT_FUNDS
+    - STOP
+    - ERROR
+    type: string
+    x-enum-varnames:
+    - SwapStatusActive
+    - SwapStatusDone
+    - SwapStatusTargetCompleted
+    - SwapStatusBudgetDone
+    - SwapStatusInsufficientFunds
+    - SwapStatusStop
+    - SwapStatusError
   model.SwapTransaction:
     properties:
       address_from:
@@ -758,7 +858,7 @@ definitions:
       pool_id:
         type: string
       status:
-        type: string
+        $ref: '#/definitions/model.SwapStatus'
       token_mint_from:
         type: string
       token_mint_to:
@@ -800,13 +900,14 @@ definitions:
     type: object
   model.TargetPullEstimateResponse:
     properties:
-      budget_sol:
+      budget:
+        description: JitoTipSOL   float64      `json:"jito_tip_sol"`
+        type: number
+      pool_fee_sol:
         type: number
       priority_fees:
         $ref: '#/definitions/model.PriorityFees'
       rent_sol:
-        type: number
-      tip_sol:
         type: number
     type: object
   model.TargetPullResponse:
@@ -881,6 +982,74 @@ definitions:
     - Default
     - Fast
     - Extra
+  model.UpdateSmartBuybackTargetRequest:
+    properties:
+      budget:
+        type: string
+      max_time_between_transactions:
+        type: integer
+      max_transaction_amount:
+        type: string
+      min_time_between_transactions:
+        type: integer
+      min_transaction_amount:
+        type: string
+      parallel_transactions_amount:
+        type: integer
+      priority_fee:
+        type: string
+      slippage:
+        type: integer
+      start_at:
+        type: integer
+      target_price:
+        type: string
+      transaction_speed:
+        $ref: '#/definitions/model.TransactionSpeed'
+      using_jito:
+        type: boolean
+    required:
+    - budget
+    - max_time_between_transactions
+    - max_transaction_amount
+    - min_time_between_transactions
+    - min_transaction_amount
+    - parallel_transactions_amount
+    - priority_fee
+    - slippage
+    - target_price
+    type: object
+  model.UploadImageResponse:
+    description: IPFS upload result for an image file
+    properties:
+      cid:
+        example: bafkreigh2akiscaildcqv7bchbosqjg5qbapjklkpkhhwvafg5o4xtwmhq
+        type: string
+      name:
+        example: logo.png
+        type: string
+      size:
+        example: "204800"
+        type: string
+      url:
+        example: https://gateway.lighthouse.storage/ipfs/bafkreigh2akiscaildcqv7bchbosqjg5qbapjklkpkhhwvafg5o4xtwmhq
+        type: string
+    type: object
+  model.UploadMetadataRequest:
+    additionalProperties: {}
+    description: Arbitrary metadata object to be uploaded as metadata.json (must not
+      be empty)
+    type: object
+  model.UploadMetadataResponse:
+    description: IPFS upload result for a metadata.json file
+    properties:
+      cid:
+        example: bafkreigh2akiscaildcqv7bchbosqjg5qbapjklkpkhhwvafg5o4xtwmhq
+        type: string
+      metadata_url:
+        example: https://gateway.lighthouse.storage/ipfs/bafkreigh2akiscaildcqv7bchbosqjg5qbapjklkpkhhwvafg5o4xtwmhq
+        type: string
+    type: object
   model.User:
     properties:
       created_at:
@@ -942,6 +1111,13 @@ definitions:
       public_key:
         example: 88888888SOL88888888SOL88888888SOL8888888
         type: string
+    type: object
+  model.WalletBuyConfig:
+    properties:
+      amount_sol:
+        type: number
+      wallet_id:
+        type: integer
     type: object
   model.WalletResponse:
     properties:
@@ -1393,6 +1569,22 @@ paths:
         name: Authorization
         required: true
         type: string
+      - default: 1
+        example: 1
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        example: 20
+        in: query
+        name: size
+        type: integer
+      - collectionFormat: csv
+        in: query
+        items:
+          type: string
+        name: status
+        type: array
       produces:
       - application/json
       responses:
@@ -1454,6 +1646,111 @@ paths:
       security:
       - BearerAuth: []
       summary: Create buyback campaign
+      tags:
+      - buyback
+  /buyback/{campaignID}/targets/{targetID}:
+    delete:
+      description: Stops an active buyback target by its UUID.
+      operationId: stop-buyback-target
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Campaign UUID
+        format: uuid
+        in: path
+        name: campaignID
+        required: true
+        type: string
+      - description: Target UUID
+        format: uuid
+        in: path
+        name: targetID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Stop buyback target
+      tags:
+      - buyback
+    patch:
+      consumes:
+      - application/json
+      description: Partially updates a buyback target. Only provided fields are applied.
+      operationId: update-buyback-target
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Campaign UUID
+        format: uuid
+        in: path
+        name: campaignID
+        required: true
+        type: string
+      - description: Target UUID
+        format: uuid
+        in: path
+        name: targetID
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.UpdateSmartBuybackTargetRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.SmartBuybackCampaignTarget'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Update buyback target
       tags:
       - buyback
   /buyback/{id}:
@@ -1531,6 +1828,63 @@ paths:
       security:
       - BearerAuth: []
       summary: Get buyback campaign by ID
+      tags:
+      - buyback
+  /buyback/{id}/targets:
+    post:
+      consumes:
+      - application/json
+      description: Adds a new target to an existing buyback campaign. Maximum 5 targets
+        per campaign.
+      operationId: create-buyback-target
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Campaign UUID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Target parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/model.CreateSmartBuybackTargetRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.SmartBuybackCampaignTarget'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "422":
+          description: Unprocessable Entity (target limit reached)
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Create buyback target
       tags:
       - buyback
   /buyback/{id}/transactions:
@@ -1883,6 +2237,152 @@ paths:
       summary: Get Jito tip floor
       tags:
       - jito
+  /launch/pumpfun/estimate:
+    post:
+      consumes:
+      - application/json
+      description: Returns total expected token amount, hardcoded creation fee in
+        SOL, configured Jito tip in SOL, total priority fee in SOL, and all remaining
+        Pumpfun commissions as one SOL value.
+      operationId: estimate-pumpfun-launch
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Pumpfun launch estimate payload
+        in: body
+        name: estimate
+        required: true
+        schema:
+          $ref: '#/definitions/model.PumpfunEstimateCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.PumpfunEstimateCreateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Estimate Pumpfun token launch costs
+      tags:
+      - pumpfun-launch
+  /launch/pumpfun/launch:
+    post:
+      consumes:
+      - application/json
+      description: Verifies signed launch transactions for a pending Pumpfun launch
+        and broadcasts them as a bundle.
+      operationId: process-pumpfun-launch
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Signed launch transaction payload
+        in: body
+        name: launch
+        required: true
+        schema:
+          $ref: '#/definitions/model.PumpfunProcessCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.PumpfunProcessCreateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Launch prepared Pumpfun token
+      tags:
+      - pumpfun-launch
+  /launch/pumpfun/prepare:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Uploads token metadata, builds the unsigned Pumpfun create transaction
+        and optional initial buy transactions, then stores pending launch state.
+      operationId: prepare-pumpfun-launch
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Token logo image
+        in: formData
+        name: logo
+        required: true
+        type: file
+      - description: JSON encoded model.PumpfunPrepareCreateTxRequest without logo
+        in: formData
+        name: data
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.PumpfunPrepareCreateTxResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Prepare Pumpfun token launch
+      tags:
+      - pumpfun-launch
   /projects:
     get:
       description: Returns all projects
@@ -2295,6 +2795,92 @@ paths:
       summary: Create Pull Up campaign (Raydium)
       tags:
       - raydium
+  /upload/image:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Uploads an image file to decentralized storage via Lighthouse and
+        returns its IPFS CID and gateway URL
+      operationId: upload-image
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Image file to upload
+        in: formData
+        name: image
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.UploadImageResponse'
+        "400":
+          description: Bad Request — image field missing
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Upload image to Lighthouse
+      tags:
+      - upload
+  /upload/metadata:
+    post:
+      consumes:
+      - application/json
+      description: Serializes an arbitrary JSON object and uploads it as metadata.json
+        to decentralized storage via Lighthouse, returning its IPFS CID and gateway
+        URL
+      operationId: upload-metadata
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Arbitrary key-value metadata object (must not be empty)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/model.UploadMetadataRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.UploadMetadataResponse'
+        "400":
+          description: Bad Request — invalid or empty body
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Upload metadata to Lighthouse
+      tags:
+      - upload
   /user:
     get:
       description: Returns the profile data for the user authenticated via a JWT access
@@ -2401,6 +2987,46 @@ paths:
       tags:
       - user
   /wallets/solana/{id}:
+    delete:
+      description: Deletes a Solana wallet by ID along with its associated secrets.
+      operationId: delete-solana-wallet
+      parameters:
+      - description: Authentication token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Wallet ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apperrors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Delete Solana wallet
+      tags:
+      - wallets
     get:
       description: Fetches the private key for a given wallet ID.
       operationId: fetch-private-key-by-id

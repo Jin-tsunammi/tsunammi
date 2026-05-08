@@ -41,6 +41,6 @@ func (s *KeyStorage) Save(ctx context.Context, secret KeySecret) error {
 }
 
 func (s *KeyStorage) Delete(ctx context.Context, userID uint64, publicKey string) error {
-	path := CreateWalletSecretPath(userID, publicKey)
+	path := CreateWalletSecretMetadataPath(userID, publicKey)
 	return s.secretStorage.DeleteSecret(ctx, path)
 }

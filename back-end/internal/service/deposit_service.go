@@ -119,7 +119,7 @@ func (s *DepositService) DepositSolana(ctx context.Context, userID uint64, req *
 
 	if err = g.Wait(); err != nil {
 		if errors.Is(err, kucoinapi.InvalidApiKeyError) {
-			acc.Status = model.AccountInactive
+			acc.Status = model.AccountStatusInactive
 
 			err = s.AccountRepository.Update(ctx, acc)
 			if err != nil {
@@ -132,8 +132,8 @@ func (s *DepositService) DepositSolana(ctx context.Context, userID uint64, req *
 
 	}
 
-	if acc.Status == model.AccountInactive {
-		acc.Status = model.AccountActive
+	if acc.Status == model.AccountStatusInactive {
+		acc.Status = model.AccountStatusActive
 
 		err = s.AccountRepository.Update(ctx, acc)
 		if err != nil {

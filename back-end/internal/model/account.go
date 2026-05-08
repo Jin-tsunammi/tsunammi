@@ -16,16 +16,16 @@ type AddExchangeAccountReq struct {
 }
 
 type AccountResponse struct {
-	ID               uint64    `json:"id" example:"1234567890"`
-	Name             string    `json:"name" example:"My Account"`
-	Exchange         string    `json:"exchange" example:"Binance"`
-	AccountId        uint64    `json:"account_id" example:"1234567890"`
-	CreatedAt        time.Time `json:"created_at" example:"2025-10-01T03:12:20Z"`
-	ApiName          string    `json:"api_name" example:"kucoin"`
-	WithdrawLimit    int       `json:"withdraw_limit" example:"25"`
-	TotalDepositsSOL float64   `json:"total_deposits_sol" example:"1000.294"`
-	TotalDepositsUSD float64   `json:"total_deposits_usd" example:"2000294.00"`
-	Status           Status    `json:"status" example:"active"`
+	ID               uint64        `json:"id" example:"1234567890"`
+	Name             string        `json:"name" example:"My Account"`
+	Exchange         string        `json:"exchange" example:"Binance"`
+	AccountId        uint64        `json:"account_id" example:"1234567890"`
+	CreatedAt        time.Time     `json:"created_at" example:"2025-10-01T03:12:20Z"`
+	ApiName          string        `json:"api_name" example:"kucoin"`
+	WithdrawLimit    int           `json:"withdraw_limit" example:"25"`
+	TotalDepositsSOL float64       `json:"total_deposits_sol" example:"1000.294"`
+	TotalDepositsUSD float64       `json:"total_deposits_usd" example:"2000294.00"`
+	Status           AccountStatus `json:"status" example:"active"`
 }
 
 type AccountsWithPaginationResponse struct {
@@ -38,16 +38,16 @@ type AccountsWithPaginationResponse struct {
 type Account struct {
 	bun.BaseModel `bun:"table:accounts,alias:a" swaggerignore:"true"`
 
-	ID                uint64  `json:"id" bun:"id,pk,autoincrement" example:"1234567890"`
-	Name              string  `json:"name" bun:"name" example:"My Account"`
-	UserID            uint64  `json:"user_id" bun:"user_id" example:"1234567890"`
-	ExchangeID        int64   `json:"exchange_id" bun:"exchange_id" example:"1"`
-	ExchangeName      string  `json:"exchange_name" bun:"-" example:"Binance"`
-	ExchangeAccountId uint64  `json:"exchange_account_id" bun:"exchange_account_id" example:"1234567890"`
-	ExchangeApiName   string  `json:"api_name" bun:"api_name" example:"kucoin"`
-	Status            Status  `json:"status" bun:"status" example:"active"`
-	DepositBalance    float64 `json:"-" bun:"-" example:"1000.294"`
-	WithdrawLimit     int     `json:"withdraw_limit" bun:"withdraw_limit" example:"25"`
+	ID                uint64        `json:"id" bun:"id,pk,autoincrement" example:"1234567890"`
+	Name              string        `json:"name" bun:"name" example:"My Account"`
+	UserID            uint64        `json:"user_id" bun:"user_id" example:"1234567890"`
+	ExchangeID        int64         `json:"exchange_id" bun:"exchange_id" example:"1"`
+	ExchangeName      string        `json:"exchange_name" bun:"-" example:"Binance"`
+	ExchangeAccountId uint64        `json:"exchange_account_id" bun:"exchange_account_id" example:"1234567890"`
+	ExchangeApiName   string        `json:"api_name" bun:"api_name" example:"kucoin"`
+	Status            AccountStatus `json:"status" bun:"status" example:"active"`
+	DepositBalance    float64       `json:"-" bun:"-" example:"1000.294"`
+	WithdrawLimit     int           `json:"withdraw_limit" bun:"withdraw_limit" example:"25"`
 
 	Key       `json:",inline" bun:"-"`
 	CreatedAt time.Time `json:"created_at" bun:"created_at,nullzero" example:"2025-10-01T03:12:20Z"`

@@ -1,117 +1,127 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Email Template</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Template</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+    </style>
 </head>
 <body>
 <table width="100%" border="0" cellspacing="0" cellpadding="64" bgcolor="#F5F5F5">
-  <tr>
-    <td align="center" valign="top">
-      <table width="600" border="0" cellspacing="0">
-        <tr>
-          <td style="border-radius: 12px; overflow: hidden; background: #FFF">
-            <table width="100%" border="0" cellspacing="0">
-              <!-- Header -->
-              <td height="54" style='padding: 0;'></td>
-              <tr>
-                <td align="center" valign="middle" style="padding: 0;">
-                  <table border="0" cellspacing="0" cellpadding="0" role="presentation" align="center" style="margin: 0 auto;">
-                    <tr>
-                      <td valign="middle" style="padding-right: 9px;">
-                        <img src="https://res.cloudinary.com/dslprpzim/image/upload/v1771919049/logo-email-template_c0f6rj.png" alt="MMT logo" width="30" height="34" style="display: block;">
-                      </td>
-                      <td valign="middle">
-                        <p style="font-family: Arial, sans-serif; font-size:25px; line-height:130%; color:#030712; font-weight:700; margin:0;">
-                          MMT
-                        </p>
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-              <td height="24" style='padding: 0;'></td>
-              <tr>
-                <td align="center" style="padding: 0px;">
-                  <p style="font-family: Arial, sans-serif;font-size:24px;line-height: 130%;color:#030712;font-weight:700;margin: 0;">
-                    Confirm your email
-                  </p>
-                </td>
-              </tr>
-              <td height="16" style='padding: 0;'></td>
-              <tr>
-                <td align="center" style="padding: 0px;">
-                  <p style="font-family: Arial, sans-serif;font-size:16px;line-height: 130%;color:#6B7280;font-weight:400;margin: 0;">
-                    Use this code to verify your email.
-                  </p>
-                  <p style="font-family: Arial, sans-serif;font-size:16px;line-height: 130%;color:#6B7280;font-weight:400;margin: 0;">
-                    Expires in 5 minutes.
-                  </p>
-                </td>
-              </tr>
-              <!-- End Header -->
+    <tr>
+        <td align="center" valign="top">
+            <table width="600" border="0" cellspacing="0">
+                <tr>
+                    <td style="border-radius: 12px; overflow: hidden; background: #FFF">
+                        <table width="100%" border="0" cellspacing="0">
+                            <!-- Header -->
+                            <td height="54" style='padding: 0;'></td>
+                            <tr>
+                                <td align="center" valign="middle" style="padding: 0;">
+                                    <table border="0" cellspacing="0" cellpadding="0" role="presentation" align="center"
+                                           style="margin: 0 auto;">
+                                        <tr>
+                                            <td valign="middle" style="padding-right: 9px;">
+                                                <img src="https://api-stage.tsunammi.io/static/logo.svg" alt="Tsunammi logo" width="34"
+                                                     height="34" style="display: block;">
+                                            </td>
+                                            <td valign="middle">
+                                                <p style="font-family: Arial, sans-serif; font-size:25px; line-height:130%; color:#030712; font-weight:700; margin:0;">
+                                                    tsunammi
+                                                </p>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            <td height="24" style='padding: 0;'></td>
+                            <tr>
+                                <td align="center" style="padding: 0px;">
+                                    <p style="font-family: Arial, sans-serif;font-size:24px;line-height: 130%;color:#030712;font-weight:700;margin: 0;">
+                                        Confirm your email
+                                    </p>
+                                </td>
+                            </tr>
+                            <td height="16" style='padding: 0;'></td>
+                            <tr>
+                                <td align="center" style="padding: 0px;">
+                                    <p style="font-family: Arial, sans-serif;font-size:16px;line-height: 130%;color:#6B7280;font-weight:400;margin: 0;">
+                                        Use this code to verify your email.
+                                    </p>
+                                    <p style="font-family: Arial, sans-serif;font-size:16px;line-height: 130%;color:#6B7280;font-weight:400;margin: 0;">
+                                        Expires in 5 minutes.
+                                    </p>
+                                </td>
+                            </tr>
+                            <!-- End Header -->
 
-              <!-- Main Content -->
-              <td height="32" style='padding: 0;'></td>
-              <tr>
-                <td align="center" valign="middle" height="58" style="padding: 0px;">
-                  <p style="width: fit-content; padding: 12px 68px; border-radius: 12px; border: 1px solid #D1D5DB; font-family: Arial, sans-serif;font-feature-settings: 'clig' off, 'liga' off;line-height: 120%;letter-spacing: 12px;font-weight: 700;font-size: 32px;color:#030712;margin: 0">
-                    {{ .code_0 }}</p>
-                </td>
-              </tr>
-              <td height="32" style='padding: 0;'></td>
-              <tr>
-                <td align="center" style="padding: 0px;">
-                  <p style="font-family: Arial, sans-serif;font-size:14px;line-height: 130%;color:#6B7280;font-weight:400;margin: 0;">
-                    If you didn’t request this, you can ignore this email.
-                  </p>
-                </td>
-              </tr>
-              <td height="54" style='padding: 0;'></td>
-              <!-- End Main Content -->
+                            <!-- Main Content -->
+                            <td height="32" style='padding: 0;'></td>
+                            <tr>
+                                <td align="center" valign="middle" height="58" style="padding: 0px;">
+                                    <p style="width: fit-content; padding: 12px 68px; border-radius: 12px; border: 1px solid #D1D5DB; font-family: Arial, sans-serif;font-feature-settings: 'clig' off, 'liga' off;line-height: 120%;letter-spacing: 12px;font-weight: 700;font-size: 32px;color:#030712;margin: 0">
+                                        {{ .code_0 }}</p>
+                                </td>
+                            </tr>
+                            <td height="32" style='padding: 0;'></td>
+                            <tr>
+                                <td align="center" style="padding: 0px;">
+                                    <p style="font-family: Arial, sans-serif;font-size:14px;line-height: 130%;color:#6B7280;font-weight:400;margin: 0;">
+                                        If you didn’t request this, you can ignore this email.
+                                    </p>
+                                </td>
+                            </tr>
+                            <td height="54" style='padding: 0;'></td>
+                            <!-- End Main Content -->
 
-              <!-- Footer -->
-              <tr>
-                <td height="36" style='padding: 0; background-color: #374151'></td>
-              </tr>
-              <tr>
-                <td align="center" valign="middle" height="32"
-                    style="padding: 0px; background-color: #374151">
-                  <a href="https://x.com/MMakingtools" target="_blank" rel="noopener noreferrer"
-                     style="text-decoration: none; margin-right: 16px">
-                    <img src="https://res.cloudinary.com/dslprpzim/image/upload/v1771919049/twitter-email-template_d6qcfv.png" alt="Twitter"
-                         style="width: 24px; height: 24px;">
-                  </a>
-                  <a href="https://x.com/MMakingtools" target="_blank" rel="noopener noreferrer"
-                     style="text-decoration: none;">
-                    <img src="https://res.cloudinary.com/dslprpzim/image/upload/v1771919050/discord-email-template_dr69kx.png" alt="Twitter"
-                         style="width: 24px; height: 24px;">
-                  </a>
-                </td>
-              </tr>
-              <tr>
-                <td align="center" valign="middle" height="34"
-                    style="padding: 0px; background-color: #374151">
-                  <p style="font-family: Helvetica, Arial, sans-serif;font-size:14px;line-height:140%;color:#A7A7A7;margin: 0;font-weight: 400;">
-                    Copyright © {{ currentYear }}</p>
-                </td>
-              </tr>
-              <td height="36" style='padding: 0; background-color: #374151;'></td>
-              <!-- End Footer -->
+                            <!-- Footer -->
+                            <tr>
+                                <td height="36" style='padding: 0; background-color: #374151'></td>
+                            </tr>
+                            <tr>
+                                <td align="center" valign="middle" height="32"
+                                    style="padding: 0px; background-color: #374151">
+                                    <a href="https://t.me/tsunammitools" target="_blank" rel="noopener noreferrer"
+                                       style="text-decoration: none; margin-right: 16px">
+                                        <img src="https://api-stage.tsunammi.io/static/telegram.png"
+                                             alt="Telegram"
+                                             style="width: 24px; height: 24px;">
+                                    </a>
+                                    <a href="https://x.com/tsunammitools" target="_blank" rel="noopener noreferrer"
+                                       style="text-decoration: none; margin-right: 16px">
+                                        <img src="https://res.cloudinary.com/dslprpzim/image/upload/v1771919049/twitter-email-template_d6qcfv.png"
+                                             alt="Twitter"
+                                             style="width: 24px; height: 24px;">
+                                    </a>
+                                    <a href="https://discord.gg/Sa6UqHewbV" target="_blank" rel="noopener noreferrer"
+                                       style="text-decoration: none;">
+                                        <img src="https://res.cloudinary.com/dslprpzim/image/upload/v1771919050/discord-email-template_dr69kx.png"
+                                             alt="Discord"
+                                             style="width: 24px; height: 24px;">
+                                    </a>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td align="center" valign="middle" height="34"
+                                    style="padding: 0px; background-color: #374151">
+                                    <p style="font-family: Helvetica, Arial, sans-serif;font-size:14px;line-height:140%;color:#A7A7A7;margin: 0;font-weight: 400;">
+                                        Copyright © {{ currentYear }}</p>
+                                </td>
+                            </tr>
+                            <td height="36" style='padding: 0; background-color: #374151;'></td>
+                            <!-- End Footer -->
+                        </table>
+                    </td>
+                </tr>
             </table>
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
+        </td>
+    </tr>
 </table>
 </body>
 </html>

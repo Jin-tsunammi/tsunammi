@@ -5,39 +5,63 @@ import (
 	"fmt"
 )
 
-type Status string
+var InitializedAccountStatuses = []AccountStatus{AccountStatusActive, AccountStatusInactive}
+
+type AccountStatus string
+type WalletStatus string
+type SwapStatus string
+type BuybackStatus string
 
 const (
-	AccountActive        Status = "active"
-	AccountInactive      Status = "inactive"
-	AccountPending       Status = "pending"
-	AccountDeleted       Status = "deleted"
-	DefaultAccountStatus        = AccountPending
-
-	Success         Status = "success"
-	CreationPending Status = "creation_pending"
-	ImportPending   Status = "import_pending"
+	AccountStatusActive   AccountStatus = "ACTIVE"
+	AccountStatusPending  AccountStatus = "PENDING"
+	AccountStatusInactive AccountStatus = "INACTIVE"
+	AccountStatusDeleted  AccountStatus = "DELETED"
+)
+const (
+	WalletStatusImportPending   WalletStatus = "IMPORT_PENDING"
+	WalletStatusCreationPending WalletStatus = "CREATION_PENDING"
+	WalletStatusSuccess         WalletStatus = "SUCCESS"
 )
 
-var InitializedAccountStatuses = []Status{AccountActive, AccountInactive}
+const (
+	SwapStatusActive            SwapStatus = "ACTIVE"
+	SwapStatusDone              SwapStatus = "DONE"
+	SwapStatusTargetCompleted   SwapStatus = "TARGET_COMPLETED"
+	SwapStatusBudgetDone        SwapStatus = "BUDGET_DONE"
+	SwapStatusInsufficientFunds SwapStatus = "INSUFFICIENT_FUNDS"
+	SwapStatusStop              SwapStatus = "STOP"
+	SwapStatusError             SwapStatus = "ERROR"
+)
 
-func (s Status) String() string {
-	return string(s)
-}
+const (
+	BuybackStatusActive            BuybackStatus = "ACTIVE"
+	BuybackStatusScheduled         BuybackStatus = "SCHEDULED"
+	BuybackStatusDone              BuybackStatus = "DONE"
+	BuybackStatusError             BuybackStatus = "ERROR"
+	BuybackStatusBudgetDone        BuybackStatus = "BUDGET_DONE"
+	BuybackStatusInsufficientFunds BuybackStatus = "INSUFFICIENT_FUNDS"
+	BuybackStatusStop              BuybackStatus = "STOP"
+)
 
-func (s Status) Value() (driver.Value, error) {
-	return string(s), nil
-}
-
-func (s *Status) Scan(value interface{}) error {
+func scanStatus[T ~string](dst *T, value any) error {
 	if value == nil {
-		*s = ""
+		*dst = ""
 		return nil
 	}
 	b, ok := value.(string)
 	if !ok {
-		return fmt.Errorf("cannot scan %T into Status", value)
+		return fmt.Errorf("cannot scan %T into status", value)
 	}
-	*s = Status(b)
+	*dst = T(b)
 	return nil
 }
+
+func (s *AccountStatus) Scan(v any) error            { return scanStatus(s, v) }
+func (s AccountStatus) Value() (driver.Value, error) { return string(s), nil }
+
+func (s *SwapStatus) Scan(v any) error            { return scanStatus(s, v) }
+func (s SwapStatus) Value() (driver.Value, error) { return string(s), nil }
+
+func (s *BuybackStatus) Scan(v any) error            { return scanStatus(s, v) }
+func (s BuybackStatus) Value() (driver.Value, error) { return string(s), nil }

@@ -36,7 +36,7 @@ func (r *ProjectRepository) FetchProjectWithWalletsByID(ctx context.Context, id,
 		Column("wallets.*").
 		Join("JOIN project_wallets pw ON pw.wallet_id = wallets.id").
 		Where("pw.project_id = ?", id).
-		Where("wallets.status = ?", model.Success).
+		Where("wallets.status = ?", model.WalletStatusSuccess).
 		Order("wallets.id ASC").
 		Scan(ctx, &wallets)
 
@@ -112,7 +112,7 @@ func (r *ProjectRepository) FindAllByUserID(ctx context.Context, userID uint64, 
 		Join("LEFT JOIN project_wallets pw ON pw.project_id = p.id").
 		Join("LEFT JOIN wallets w ON w.id = pw.wallet_id").
 		Where("p.id IN (?)", pidsQuery).
-		Where("w.status = ? OR w.status is NULL", model.Success).
+		Where("w.status = ? OR w.status is NULL", model.WalletStatusSuccess).
 		OrderExpr(orderExpr).
 		Order("w.id ASC")
 
@@ -171,7 +171,7 @@ func (r *ProjectRepository) FindAllByUserID1(ctx context.Context, userID uint64,
 		Join("LEFT JOIN project_wallets pw ON pw.project_id = p.id").
 		Join("LEFT JOIN wallets w ON w.id = pw.wallet_id").
 		Where("p.user_id = ?", userID).
-		Where("w.status = ? OR w.status is NULL", model.Success).
+		Where("w.status = ? OR w.status is NULL", model.WalletStatusSuccess).
 		Order("p.id")
 
 	if page != 0 && pageSize != 0 {
@@ -216,7 +216,7 @@ func (r *ProjectRepository) FindAllByUserID1(ctx context.Context, userID uint64,
 	return projects, nil
 }
 
-func (r *ProjectRepository) FindAllOlderThanWithWalletsByStatus(ctx context.Context, t time.Duration, status model.Status) ([]model.ProjectWithWallets, error) {
+func (r *ProjectRepository) FindAllOlderThanWithWalletsByStatus(ctx context.Context, t time.Duration, status model.WalletStatus) ([]model.ProjectWithWallets, error) {
 	var rows []struct {
 		ProjectID   uint64    `bun:"project_id"`
 		ProjectName string    `bun:"project_name"`

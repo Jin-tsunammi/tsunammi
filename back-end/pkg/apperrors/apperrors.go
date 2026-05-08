@@ -105,3 +105,7 @@ func AlreadyExist(message string, err ...error) error {
 func Teapot(message string, err ...error) error {
 	return newAppError(http.StatusTeapot, message, err...)
 }
+
+func UnprocessableEntity(message string, err ...error) error {
+	return newAppError(http.StatusUnprocessableEntity, message, err...)
+}

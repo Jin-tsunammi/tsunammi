@@ -33,6 +33,10 @@ func (h *BuybackHandler) RegisterRoutes(app *fiber.App, auth *AuthHandler) {
 		buybackGroup.Post("", h.create)
 		buybackGroup.Delete("/:id", h.stop)
 		buybackGroup.Get("/:id/transactions", h.getTransactions)
+
+		buybackGroup.Post("/:id/targets", h.createTarget)
+		buybackGroup.Delete("/:campaignID/targets/:targetID", h.stopTarget)
+		buybackGroup.Patch("/:campaignID/targets/:targetID", h.updateTarget)
 	}
 }
 
@@ -82,7 +86,8 @@ func (h *BuybackHandler) create(c fiber.Ctx) error {
 //	@Tags			buyback
 //	@ID				get-buyback-campaigns
 //	@Produce		json
-//	@Param			Authorization	header		string	true	"Authentication token"
+//	@Param			Authorization	header		string								true	"Authentication token"
+//	@Param			request			query		model.GetAllBuybackCampaignsRequest	true	"request"
 //	@Success		200				{array}		model.SmartBuybackCampaign
 //	@Failure		401				{object}	apperrors.AppError	"Unauthorized"
 //	@Failure		500				{object}	apperrors.AppError	"Internal Server Error"
@@ -94,7 +99,14 @@ func (h *BuybackHandler) getAll(c fiber.Ctx) error {
 		return apperrors.Unauthorized("claims not found")
 	}
 
-	res, err := h.BuybackService.GetCampaigns(c.Context(), claims.UserID)
+	var req model.GetAllBuybackCampaignsRequest
+	if err := c.Bind().Query(&req); err != nil {
+		return apperrors.BadRequest("invalid request", err)
+	}
+
+	req.Validate()
+
+	res, err := h.BuybackService.GetCampaigns(c.Context(), claims.UserID, &req)
 	if err != nil {
 		return err
 	}
@@ -216,6 +228,132 @@ func (h *BuybackHandler) getTransactions(c fiber.Ctx) error {
 	}
 
 	res, err := h.BuybackService.GetTransactions(c.Context(), id, claims.UserID, targetID, parsedPage, parsedPageSize)
+	if err != nil {
+		return err
+	}
+
+	return c.Status(http.StatusOK).JSON(res)
+}
+
+// createTarget godoc
+//
+//	@Summary		Create buyback target
+//	@Description	Adds a new target to an existing buyback campaign. Maximum 5 targets per campaign.
+//	@Tags			buyback
+//	@ID				create-buyback-target
+//	@Accept			json
+//	@Produce		json
+//	@Param			Authorization	header		string									true	"Authentication token"
+//	@Param			id				path		string									true	"Campaign UUID"	format(uuid)
+//	@Param			request			body		model.CreateSmartBuybackTargetRequest	true	"Target parameters"
+//	@Success		200				{object}	model.SmartBuybackCampaignTarget
+//	@Failure		400				{object}	apperrors.AppError	"Bad Request"
+//	@Failure		401				{object}	apperrors.AppError	"Unauthorized"
+//	@Failure		404				{object}	apperrors.AppError	"Not Found"
+//	@Failure		422				{object}	apperrors.AppError	"Unprocessable Entity (target limit reached)"
+//	@Failure		500				{object}	apperrors.AppError	"Internal Server Error"
+//	@Router			/buyback/{id}/targets [post]
+//	@Security		BearerAuth
+func (h *BuybackHandler) createTarget(c fiber.Ctx) error {
+	claims, ok := c.Locals("claims").(auth.TokenClaims)
+	if !ok {
+		return apperrors.Unauthorized("claims not found")
+	}
+
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return apperrors.BadRequest("invalid id")
+	}
+
+	var req model.CreateSmartBuybackTargetRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return apperrors.BadRequest("invalid request", err)
+	}
+
+	req.CampaignID = id
+
+	res, err := h.BuybackService.CreateTarget(c.Context(), claims.UserID, &req)
+	if err != nil {
+		return err
+	}
+
+	return c.Status(http.StatusOK).JSON(res)
+}
+
+// stopTarget godoc
+//
+//	@Summary		Stop buyback target
+//	@Description	Stops an active buyback target by its UUID.
+//	@Tags			buyback
+//	@ID				stop-buyback-target
+//	@Produce		json
+//	@Param			Authorization	header	string	true	"Authentication token"
+//	@Param			campaignID		path	string	true	"Campaign UUID"	format(uuid)
+//	@Param			targetID		path	string	true	"Target UUID"	format(uuid)
+//	@Success		204				"No Content"
+//	@Failure		400				{object}	apperrors.AppError	"Bad Request"
+//	@Failure		401				{object}	apperrors.AppError	"Unauthorized"
+//	@Failure		404				{object}	apperrors.AppError	"Not Found"
+//	@Failure		500				{object}	apperrors.AppError	"Internal Server Error"
+//	@Router			/buyback/{campaignID}/targets/{targetID} [delete]
+//	@Security		BearerAuth
+func (h *BuybackHandler) stopTarget(c fiber.Ctx) error {
+	claims, ok := c.Locals("claims").(auth.TokenClaims)
+	if !ok {
+		return apperrors.Unauthorized("claims not found")
+	}
+
+	id, err := uuid.Parse(c.Params("targetID"))
+	if err != nil {
+		return apperrors.BadRequest("invalid id")
+	}
+
+	err = h.BuybackService.StopTarget(c.Context(), claims.UserID, id)
+	if err != nil {
+		return err
+	}
+
+	return c.SendStatus(http.StatusNoContent)
+}
+
+// updateTarget godoc
+//
+//	@Summary		Update buyback target
+//	@Description	Partially updates a buyback target. Only provided fields are applied.
+//	@Tags			buyback
+//	@ID				update-buyback-target
+//	@Accept			json
+//	@Produce		json
+//	@Param			Authorization	header		string									true	"Authentication token"
+//	@Param			campaignID		path		string									true	"Campaign UUID"	format(uuid)
+//	@Param			targetID		path		string									true	"Target UUID"	format(uuid)
+//	@Param			request			body		model.UpdateSmartBuybackTargetRequest	true	"Fields to update"
+//	@Success		200				{object}	model.SmartBuybackCampaignTarget
+//	@Failure		400				{object}	apperrors.AppError	"Bad Request"
+//	@Failure		401				{object}	apperrors.AppError	"Unauthorized"
+//	@Failure		404				{object}	apperrors.AppError	"Not Found"
+//	@Failure		500				{object}	apperrors.AppError	"Internal Server Error"
+//	@Router			/buyback/{campaignID}/targets/{targetID} [patch]
+//	@Security		BearerAuth
+func (h *BuybackHandler) updateTarget(c fiber.Ctx) error {
+	claims, ok := c.Locals("claims").(auth.TokenClaims)
+	if !ok {
+		return apperrors.Unauthorized("claims not found")
+	}
+
+	id, err := uuid.Parse(c.Params("targetID"))
+	if err != nil {
+		return apperrors.BadRequest("invalid id")
+	}
+
+	var req model.UpdateSmartBuybackTargetRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return apperrors.BadRequest("invalid request", err)
+	}
+
+	req.ID = id
+
+	res, err := h.BuybackService.UpdateTarget(c.Context(), claims.UserID, &req)
 	if err != nil {
 		return err
 	}

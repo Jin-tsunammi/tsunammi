@@ -134,7 +134,7 @@ func (s *CampaignService) StopCampaign(ctx context.Context, campaignID uuid.UUID
 			return apperrors.Internal("failed to get campaign", err)
 		}
 
-		campaign.Status = model.StatusStop
+		campaign.Status = model.SwapStatusStop
 
 		if err = s.CampaignRepository.WithTx(tx).Update(ctx, campaign); err != nil {
 			return apperrors.Internal("failed to stop campaign", err)
@@ -247,7 +247,7 @@ func (s *CampaignService) GetCampaignTransactions(ctx context.Context, campaignI
 	}, nil
 }
 
-func (s *CampaignService) GetCampaignsSummary(ctx context.Context, parsedPage, parsedPageSize int, userID uint64, campaignType, status string) (*model.CampaignSummaryWithPagination, error) {
+func (s *CampaignService) GetCampaignsSummary(ctx context.Context, parsedPage, parsedPageSize int, userID uint64, campaignType string, status model.SwapStatus) (*model.CampaignSummaryWithPagination, error) {
 	summary, total, err := s.CampaignRepository.GetCampaignsSummary(ctx, parsedPage, parsedPageSize, userID, campaignType, status)
 	if err != nil {
 		return nil, apperrors.Internal("failed to get campaigns summary", err)

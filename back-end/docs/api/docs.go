@@ -603,6 +603,29 @@ const docTemplate = `{
                         "name": "Authorization",
                         "in": "header",
                         "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "example": 1,
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "example": 20,
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "name": "status",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -680,6 +703,163 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    }
+                }
+            }
+        },
+        "/buyback/{campaignID}/targets/{targetID}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Stops an active buyback target by its UUID.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "buyback"
+                ],
+                "summary": "Stop buyback target",
+                "operationId": "stop-buyback-target",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authentication token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Campaign UUID",
+                        "name": "campaignID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Target UUID",
+                        "name": "targetID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Partially updates a buyback target. Only provided fields are applied.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "buyback"
+                ],
+                "summary": "Update buyback target",
+                "operationId": "update-buyback-target",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authentication token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Campaign UUID",
+                        "name": "campaignID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Target UUID",
+                        "name": "targetID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to update",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UpdateSmartBuybackTargetRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.SmartBuybackCampaignTarget"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/apperrors.AppError"
                         }
@@ -797,6 +977,91 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    }
+                }
+            }
+        },
+        "/buyback/{id}/targets": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Adds a new target to an existing buyback campaign. Maximum 5 targets per campaign.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "buyback"
+                ],
+                "summary": "Create buyback target",
+                "operationId": "create-buyback-target",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authentication token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Campaign UUID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Target parameters",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.CreateSmartBuybackTargetRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.SmartBuybackCampaignTarget"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity (target limit reached)",
                         "schema": {
                             "$ref": "#/definitions/apperrors.AppError"
                         }
@@ -1331,6 +1596,224 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    }
+                }
+            }
+        },
+        "/launch/pumpfun/estimate": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns total expected token amount, hardcoded creation fee in SOL, configured Jito tip in SOL, total priority fee in SOL, and all remaining Pumpfun commissions as one SOL value.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "pumpfun-launch"
+                ],
+                "summary": "Estimate Pumpfun token launch costs",
+                "operationId": "estimate-pumpfun-launch",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authentication token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Pumpfun launch estimate payload",
+                        "name": "estimate",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.PumpfunEstimateCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.PumpfunEstimateCreateResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    }
+                }
+            }
+        },
+        "/launch/pumpfun/launch": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Verifies signed launch transactions for a pending Pumpfun launch and broadcasts them as a bundle.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "pumpfun-launch"
+                ],
+                "summary": "Launch prepared Pumpfun token",
+                "operationId": "process-pumpfun-launch",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authentication token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Signed launch transaction payload",
+                        "name": "launch",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.PumpfunProcessCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.PumpfunProcessCreateResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    }
+                }
+            }
+        },
+        "/launch/pumpfun/prepare": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Uploads token metadata, builds the unsigned Pumpfun create transaction and optional initial buy transactions, then stores pending launch state.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "pumpfun-launch"
+                ],
+                "summary": "Prepare Pumpfun token launch",
+                "operationId": "prepare-pumpfun-launch",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authentication token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Token logo image",
+                        "name": "logo",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "JSON encoded model.PumpfunPrepareCreateTxRequest without logo",
+                        "name": "data",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.PumpfunPrepareCreateTxResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
                         "schema": {
                             "$ref": "#/definitions/apperrors.AppError"
                         }
@@ -1955,6 +2438,134 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    }
+                }
+            }
+        },
+        "/upload/image": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Uploads an image file to decentralized storage via Lighthouse and returns its IPFS CID and gateway URL",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "upload"
+                ],
+                "summary": "Upload image to Lighthouse",
+                "operationId": "upload-image",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authentication token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Image file to upload",
+                        "name": "image",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.UploadImageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request — image field missing",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    }
+                }
+            }
+        },
+        "/upload/metadata": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Serializes an arbitrary JSON object and uploads it as metadata.json to decentralized storage via Lighthouse, returning its IPFS CID and gateway URL",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "upload"
+                ],
+                "summary": "Upload metadata to Lighthouse",
+                "operationId": "upload-metadata",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authentication token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Arbitrary key-value metadata object (must not be empty)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UploadMetadataRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.UploadMetadataResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request — invalid or empty body",
                         "schema": {
                             "$ref": "#/definitions/apperrors.AppError"
                         }
@@ -2792,6 +3403,67 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes a Solana wallet by ID along with its associated secrets.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "wallets"
+                ],
+                "summary": "Delete Solana wallet",
+                "operationId": "delete-solana-wallet",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Authentication token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Wallet ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/apperrors.AppError"
+                        }
+                    }
+                }
             }
         }
     },
@@ -2864,7 +3536,7 @@ const docTemplate = `{
                 "status": {
                     "allOf": [
                         {
-                            "$ref": "#/definitions/model.Status"
+                            "$ref": "#/definitions/model.AccountStatus"
                         }
                     ],
                     "example": "active"
@@ -2909,7 +3581,7 @@ const docTemplate = `{
                 "status": {
                     "allOf": [
                         {
-                            "$ref": "#/definitions/model.Status"
+                            "$ref": "#/definitions/model.AccountStatus"
                         }
                     ],
                     "example": "active"
@@ -2927,6 +3599,21 @@ const docTemplate = `{
                     "example": 25
                 }
             }
+        },
+        "model.AccountStatus": {
+            "type": "string",
+            "enum": [
+                "ACTIVE",
+                "PENDING",
+                "INACTIVE",
+                "DELETED"
+            ],
+            "x-enum-varnames": [
+                "AccountStatusActive",
+                "AccountStatusPending",
+                "AccountStatusInactive",
+                "AccountStatusDeleted"
+            ]
         },
         "model.AddExchangeAccountReq": {
             "type": "object",
@@ -2954,6 +3641,27 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "model.BuybackStatus": {
+            "type": "string",
+            "enum": [
+                "ACTIVE",
+                "SCHEDULED",
+                "DONE",
+                "ERROR",
+                "BUDGET_DONE",
+                "INSUFFICIENT_FUNDS",
+                "STOP"
+            ],
+            "x-enum-varnames": [
+                "BuybackStatusActive",
+                "BuybackStatusScheduled",
+                "BuybackStatusDone",
+                "BuybackStatusError",
+                "BuybackStatusBudgetDone",
+                "BuybackStatusInsufficientFunds",
+                "BuybackStatusStop"
+            ]
         },
         "model.BuybackTransaction": {
             "type": "object",
@@ -2989,7 +3697,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
-                    "type": "string"
+                    "$ref": "#/definitions/model.BuybackStatus"
                 },
                 "target_id": {
                     "type": "string"
@@ -3559,6 +4267,111 @@ const docTemplate = `{
                 }
             }
         },
+        "model.PumpfunEstimateCreateRequest": {
+            "type": "object",
+            "properties": {
+                "buy_in_sol": {
+                    "type": "number"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "wallet_buys": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.WalletBuyConfig"
+                    }
+                }
+            }
+        },
+        "model.PumpfunEstimateCreateResponse": {
+            "type": "object",
+            "properties": {
+                "creation_fee_sol": {
+                    "type": "number"
+                },
+                "jito_tip_sol": {
+                    "type": "number"
+                },
+                "priority_fee_sol": {
+                    "type": "number"
+                },
+                "pumpfun_commission_sol": {
+                    "type": "number"
+                },
+                "total_tokens_out": {
+                    "type": "number"
+                }
+            }
+        },
+        "model.PumpfunLaunchStatus": {
+            "type": "string",
+            "enum": [
+                "PENDING",
+                "SUCCESS",
+                "FAILED"
+            ],
+            "x-enum-varnames": [
+                "PumpfunLaunchStatusPending",
+                "PumpfunLaunchStatusSuccess",
+                "PumpfunLaunchStatusFailed"
+            ]
+        },
+        "model.PumpfunPrepareCreateTxResponse": {
+            "type": "object",
+            "properties": {
+                "buy_transaction": {
+                    "description": "base64 encoded, unsigned; empty when owner buy is zero",
+                    "type": "string"
+                },
+                "create_transaction": {
+                    "description": "base64 encoded, partially signed (mint only); contains Jito tip",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "mint_pubkey": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.PumpfunProcessCreateRequest": {
+            "type": "object",
+            "properties": {
+                "mint_pubkey": {
+                    "type": "string"
+                },
+                "signed_buy_tx": {
+                    "description": "base64 encoded, owner-signed; required when buy_transaction is not empty",
+                    "type": "string"
+                },
+                "signed_create_tx": {
+                    "description": "base64 encoded full signed tx",
+                    "type": "string"
+                },
+                "tx_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.PumpfunProcessCreateResponse": {
+            "type": "object",
+            "properties": {
+                "mint_pubkey": {
+                    "type": "string"
+                },
+                "signatures": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "status": {
+                    "$ref": "#/definitions/model.PumpfunLaunchStatus"
+                }
+            }
+        },
         "model.SendCode": {
             "type": "object",
             "properties": {
@@ -3633,7 +4446,7 @@ const docTemplate = `{
                     "$ref": "#/definitions/model.SwapProviderID"
                 },
                 "status": {
-                    "type": "string"
+                    "$ref": "#/definitions/model.BuybackStatus"
                 },
                 "token_mint": {
                     "type": "string"
@@ -3664,13 +4477,13 @@ const docTemplate = `{
                 "max_time_between_transactions": {
                     "type": "integer"
                 },
-                "max_transactions_budget": {
+                "max_transaction_amount": {
                     "type": "string"
                 },
                 "min_time_between_transactions": {
                     "type": "integer"
                 },
-                "min_transactions_budget": {
+                "min_transaction_amount": {
                     "type": "string"
                 },
                 "parallel_transactions_amount": {
@@ -3689,7 +4502,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
-                    "type": "string"
+                    "$ref": "#/definitions/model.BuybackStatus"
                 },
                 "target_price": {
                     "type": "string"
@@ -3730,7 +4543,7 @@ const docTemplate = `{
                     "$ref": "#/definitions/model.SwapProviderID"
                 },
                 "status": {
-                    "type": "string"
+                    "$ref": "#/definitions/model.BuybackStatus"
                 },
                 "targets": {
                     "type": "array",
@@ -3763,29 +4576,6 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
-        },
-        "model.Status": {
-            "type": "string",
-            "enum": [
-                "active",
-                "inactive",
-                "pending",
-                "deleted",
-                "pending",
-                "success",
-                "creation_pending",
-                "import_pending"
-            ],
-            "x-enum-varnames": [
-                "AccountActive",
-                "AccountInactive",
-                "AccountPending",
-                "AccountDeleted",
-                "DefaultAccountStatus",
-                "Success",
-                "CreationPending",
-                "ImportPending"
-            ]
         },
         "model.SwapCampaign": {
             "type": "object",
@@ -3842,7 +4632,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
-                    "type": "string"
+                    "$ref": "#/definitions/model.SwapStatus"
                 },
                 "token_mint_from": {
                     "type": "string"
@@ -3874,6 +4664,27 @@ const docTemplate = `{
             "x-enum-varnames": [
                 "SwapProviderRaydium",
                 "SwapProviderPumpfun"
+            ]
+        },
+        "model.SwapStatus": {
+            "type": "string",
+            "enum": [
+                "ACTIVE",
+                "DONE",
+                "TARGET_COMPLETED",
+                "BUDGET_DONE",
+                "INSUFFICIENT_FUNDS",
+                "STOP",
+                "ERROR"
+            ],
+            "x-enum-varnames": [
+                "SwapStatusActive",
+                "SwapStatusDone",
+                "SwapStatusTargetCompleted",
+                "SwapStatusBudgetDone",
+                "SwapStatusInsufficientFunds",
+                "SwapStatusStop",
+                "SwapStatusError"
             ]
         },
         "model.SwapTransaction": {
@@ -3910,7 +4721,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
-                    "type": "string"
+                    "$ref": "#/definitions/model.SwapStatus"
                 },
                 "token_mint_from": {
                     "type": "string"
@@ -3974,16 +4785,17 @@ const docTemplate = `{
         "model.TargetPullEstimateResponse": {
             "type": "object",
             "properties": {
-                "budget_sol": {
+                "budget": {
+                    "description": "JitoTipSOL   float64      ` + "`" + `json:\"jito_tip_sol\"` + "`" + `",
+                    "type": "number"
+                },
+                "pool_fee_sol": {
                     "type": "number"
                 },
                 "priority_fees": {
                     "$ref": "#/definitions/model.PriorityFees"
                 },
                 "rent_sol": {
-                    "type": "number"
-                },
-                "tip_sol": {
                     "type": "number"
                 }
             }
@@ -4094,6 +4906,99 @@ const docTemplate = `{
                 "Extra"
             ]
         },
+        "model.UpdateSmartBuybackTargetRequest": {
+            "type": "object",
+            "required": [
+                "budget",
+                "max_time_between_transactions",
+                "max_transaction_amount",
+                "min_time_between_transactions",
+                "min_transaction_amount",
+                "parallel_transactions_amount",
+                "priority_fee",
+                "slippage",
+                "target_price"
+            ],
+            "properties": {
+                "budget": {
+                    "type": "string"
+                },
+                "max_time_between_transactions": {
+                    "type": "integer"
+                },
+                "max_transaction_amount": {
+                    "type": "string"
+                },
+                "min_time_between_transactions": {
+                    "type": "integer"
+                },
+                "min_transaction_amount": {
+                    "type": "string"
+                },
+                "parallel_transactions_amount": {
+                    "type": "integer"
+                },
+                "priority_fee": {
+                    "type": "string"
+                },
+                "slippage": {
+                    "type": "integer"
+                },
+                "start_at": {
+                    "type": "integer"
+                },
+                "target_price": {
+                    "type": "string"
+                },
+                "transaction_speed": {
+                    "$ref": "#/definitions/model.TransactionSpeed"
+                },
+                "using_jito": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "model.UploadImageResponse": {
+            "description": "IPFS upload result for an image file",
+            "type": "object",
+            "properties": {
+                "cid": {
+                    "type": "string",
+                    "example": "bafkreigh2akiscaildcqv7bchbosqjg5qbapjklkpkhhwvafg5o4xtwmhq"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "logo.png"
+                },
+                "size": {
+                    "type": "string",
+                    "example": "204800"
+                },
+                "url": {
+                    "type": "string",
+                    "example": "https://gateway.lighthouse.storage/ipfs/bafkreigh2akiscaildcqv7bchbosqjg5qbapjklkpkhhwvafg5o4xtwmhq"
+                }
+            }
+        },
+        "model.UploadMetadataRequest": {
+            "description": "Arbitrary metadata object to be uploaded as metadata.json (must not be empty)",
+            "type": "object",
+            "additionalProperties": {}
+        },
+        "model.UploadMetadataResponse": {
+            "description": "IPFS upload result for a metadata.json file",
+            "type": "object",
+            "properties": {
+                "cid": {
+                    "type": "string",
+                    "example": "bafkreigh2akiscaildcqv7bchbosqjg5qbapjklkpkhhwvafg5o4xtwmhq"
+                },
+                "metadata_url": {
+                    "type": "string",
+                    "example": "https://gateway.lighthouse.storage/ipfs/bafkreigh2akiscaildcqv7bchbosqjg5qbapjklkpkhhwvafg5o4xtwmhq"
+                }
+            }
+        },
         "model.User": {
             "type": "object",
             "properties": {
@@ -4177,6 +5082,17 @@ const docTemplate = `{
                 "public_key": {
                     "type": "string",
                     "example": "88888888SOL88888888SOL88888888SOL8888888"
+                }
+            }
+        },
+        "model.WalletBuyConfig": {
+            "type": "object",
+            "properties": {
+                "amount_sol": {
+                    "type": "number"
+                },
+                "wallet_id": {
+                    "type": "integer"
                 }
             }
         },

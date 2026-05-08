@@ -91,7 +91,7 @@ func (s *AccountService) AddExchangeAccount(ctx context.Context, req *model.AddE
 				UserID:            userID,
 				ExchangeAccountId: acc.UID,
 				ExchangeApiName:   acc.ApiName,
-				Status:            model.DefaultAccountStatus,
+				Status:            model.AccountStatusActive,
 			})
 			if err != nil {
 				return err
@@ -144,7 +144,7 @@ func (s *AccountService) AddExchangeAccount(ctx context.Context, req *model.AddE
 
 	err = s.TransactionManager.WithinTransaction(ctx,
 		func(ctx context.Context, tx bun.Tx) error {
-			account.Status = model.AccountActive
+			account.Status = model.AccountStatusActive
 			err = s.AccountRepository.WithTx(tx).Update(ctx, account)
 
 			if err != nil {
@@ -227,7 +227,7 @@ func (s *AccountService) DeleteAccountByIDAndUserID(ctx context.Context, id, use
 		return apperrors.Internal("failed to get account", err)
 	}
 
-	acc.Status = model.AccountDeleted
+	acc.Status = model.AccountStatusDeleted
 
 	err = s.AccountRepository.Update(ctx, acc)
 
@@ -241,7 +241,7 @@ func (s *AccountService) DeleteAccountByIDAndUserID(ctx context.Context, id, use
 	err = s.AccountStorage.Delete(ctx, userID, acc.ExchangeAccountId, acc.ID)
 
 	if err != nil {
-		acc.Status = model.AccountActive
+		acc.Status = model.AccountStatusActive
 		_ = s.AccountRepository.Update(ctx, acc)
 		return apperrors.Internal("failed to delete secret", err)
 	}

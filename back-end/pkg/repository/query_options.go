@@ -12,6 +12,7 @@ var OperatorsMap = map[string]struct{}{
 	"ilike":  {},
 	"is":     {},
 	"is not": {},
+	"in":     {},
 }
 
 type Options struct {

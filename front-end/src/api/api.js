@@ -153,3 +153,8 @@ export const UpdateSmartBuyBackTarget = async({id, targetID, data}) => apiInstan
 //Upload via Lighthouse
 export const UploadImage = async(formdata) => apiInstance.post(`/upload/image`, formdata);
 export const UploadMetadata = async(data) => apiInstance.post(`/upload/metadata`, data);
+
+//Launch Token on PumpFun
+export const GetTokenPumpFunEstimate = async(data) => apiInstance.post(`/launch/pumpfun/estimate`, data);
+export const PostTokenPumpFunPrepare = async(formdata) => apiInstance.post(`/launch/pumpfun/prepare`, formdata);
+export const LaunchTokenPumpFunPrepare = async(data) => apiInstance.post(`/launch/pumpfun/launch`, data);

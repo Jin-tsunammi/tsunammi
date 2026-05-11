@@ -70,6 +70,10 @@ const modalStore = useModalsStore();
     &.success {
       color: #16A34A;
     }
+
+    &.error {
+      color: #DC2626;
+    }
   }
 
   & span {

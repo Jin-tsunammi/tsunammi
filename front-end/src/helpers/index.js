@@ -74,10 +74,10 @@ export function formatAmount(value, length = 4) {
     return end ? `${start}.${end}` : start
 }
 
-export function errorToast(errorMessage) {
+export function errorToast(errorMessage, timeout=3000) {
     const toastStore = useToastStore();
     const message = errorMessage ? formatText(errorMessage) : 'Something went wrong';
-    toastStore.error({text: message});
+    toastStore.error({text: message, timeout});
     console.error(message);
 }
 

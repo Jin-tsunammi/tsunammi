@@ -18,7 +18,7 @@
         :autocomplete="'off'"
         :readonly="is_readonly"
         :inputmode="inputMods"
-        @blur="emits('handleBlur', $event)"
+        @blur="handleBlur"
         @input="handleInput"
         @keydown="handleKeydown"
         class="paragraph-small"
@@ -121,11 +121,25 @@ function handleInput(event) {
 
     if (!props.is_dot_allowed) {
       value = value.replace(/[.,]/g, '');
-    }
 
-    const parts = value.split(/[.,]/);
-    if (parts.length > 2) {
-      value = parts[0] + '.' + parts.slice(1).join('');
+      if (value.startsWith('0')) {
+        value = value.replace(/^0+/, '0');
+      }
+    } else {
+      value = value.replace(',', '.');
+
+      if (value.startsWith('0') && value.length > 1 && value[1] !== '.') {
+        value = value.replace(/^0+/, '0');
+
+        if (value.length > 1 && value[1] !== '.') {
+          value = value.replace(/^0+/, '');
+        }
+      }
+
+      const parts = value.split('.');
+      if (parts.length > 2) {
+        value = parts[0] + '.' + parts.slice(1).join('');
+      }
     }
 
     event.target.value = value;
@@ -133,6 +147,21 @@ function handleInput(event) {
   }
 
   emits('handleInput', event);
+}
+
+function handleBlur(event) {
+  let value = event.target.value;
+
+  if (props.type === 'number') {
+    if (value) {
+      value = value.replace(/[.,]$/, '');
+
+      event.target.value = value;
+      inputVal.value = value;
+    }
+  }
+
+  emits('handleBlur', event);
 }
 </script>
 <style scoped lang="scss">

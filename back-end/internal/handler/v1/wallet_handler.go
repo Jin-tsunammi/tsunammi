@@ -285,6 +285,41 @@ func (h *WalletHandler) FetchPrivateKeysByProjectID(c fiber.Ctx) error {
 
 }
 
+// DeleteSolanaWallet godoc
+//
+//	@Summary		Delete Solana wallet
+//	@Description	Deletes a Solana wallet by ID along with its associated secrets.
+//	@Tags			wallets
+//	@ID				delete-solana-wallet
+//	@Produce		json
+//	@Param			Authorization	header	string	true	"Authentication token"
+//	@Param			id				path	int		true	"Wallet ID"
+//	@Success		204				"No Content"
+//	@Failure		400				{object}	apperrors.AppError	"Bad Request"
+//	@Failure		401				{object}	apperrors.AppError	"Unauthorized"
+//	@Failure		404				{object}	apperrors.AppError	"Not Found"
+//	@Failure		500				{object}	apperrors.AppError	"Internal Server Error"
+//	@Router			/wallets/solana/{id} [delete]
+//	@Security		BearerAuth
+func (h *WalletHandler) deleteSolanaWallet(c fiber.Ctx) error {
+	claims, ok := c.Locals("claims").(auth.TokenClaims)
+	if !ok {
+		return apperrors.Unauthorized("claims not found")
+	}
+
+	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
+	if err != nil {
+		return apperrors.BadRequest("invalid id", err)
+	}
+
+	err = h.WalletService.DeleteWallet(c.Context(), id, claims.UserID)
+	if err != nil {
+		return err
+	}
+
+	return c.SendStatus(http.StatusNoContent)
+}
+
 func (h *WalletHandler) RegisterRoutes(app *fiber.App, auth *AuthHandler) {
 	walletGroup := app.Group("/wallets")
 	{
@@ -297,6 +332,7 @@ func (h *WalletHandler) RegisterRoutes(app *fiber.App, auth *AuthHandler) {
 			solanaGroup.Post("/import-file", h.ImportSolanaWalletsFromFile)
 			solanaGroup.Get("/:id", h.FetchPrivateKeyByID)
 			solanaGroup.Get("", h.FetchPrivateKeysByProjectID)
+			solanaGroup.Delete("/:id", h.deleteSolanaWallet)
 		}
 	}
 }

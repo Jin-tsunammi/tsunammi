@@ -19,11 +19,11 @@ import (
 type campaignRepoStub struct {
 	mu             sync.Mutex
 	updateCalls    int
-	lastStatus     string
+	lastStatus     model.SwapStatus
 	lastCampaignID uuid.UUID
 }
 
-func (s *campaignRepoStub) UpdateStatusByID(_ context.Context, status string, campaignID uuid.UUID) error {
+func (s *campaignRepoStub) UpdateStatusByID(_ context.Context, status model.SwapStatus, campaignID uuid.UUID) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.updateCalls++
@@ -60,7 +60,7 @@ func TestRunTarget_SetsErrorStatusWhenExecuteTargetFails(t *testing.T) {
 	repo.mu.Lock()
 	defer repo.mu.Unlock()
 	require.Equal(t, 1, repo.updateCalls)
-	require.Equal(t, model.StatusError, repo.lastStatus)
+	require.Equal(t, model.SwapStatusError, repo.lastStatus)
 	require.Equal(t, campaignID, repo.lastCampaignID)
 }
 

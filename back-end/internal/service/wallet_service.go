@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"mm/internal/client/jito"
@@ -105,7 +106,7 @@ func (s *WalletService) GenerateSolanaWallets(ctx context.Context, req *model.Ge
 				PublicKey:  wallet.PublicKey().String(),
 				PrivateKey: wallet.PrivateKey.String(),
 				ProjectIDs: req.ProjectIDs,
-				Status:     model.CreationPending,
+				Status:     model.WalletStatusCreationPending,
 			}
 
 			resCh <- w
@@ -254,7 +255,7 @@ func (s *WalletService) ImportWallets(ctx context.Context, req *model.ImportWall
 			PublicKey:  pubKey,
 			PrivateKey: privateKeyBase58,
 			ProjectIDs: req.ProjectIDs,
-			Status:     model.ImportPending,
+			Status:     model.WalletStatusImportPending,
 		})
 		publicKeys = append(publicKeys, pubKey)
 	}
@@ -386,7 +387,7 @@ func (s *WalletService) consistentlySaveWallets(ctx context.Context, wallets []m
 
 	for i := 0; i < len(res); i++ {
 		wallet := &res[i]
-		wallet.Status = model.Success
+		wallet.Status = model.WalletStatusSuccess
 	}
 
 	_ = s.TransactionManager.WithinTransaction(ctx,
@@ -407,4 +408,21 @@ func (s *WalletService) consistentlySaveWallets(ctx context.Context, wallets []m
 	)
 
 	return res, nil
+}
+
+func (s *WalletService) DeleteWallet(ctx context.Context, id, userID uint64) error {
+	publicKey, err := s.WalletRepository.Delete(ctx, id, userID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return apperrors.BadRequest("unknown wallet")
+		}
+		return apperrors.Internal("failed to delete wallet", err)
+	}
+
+	err = s.KeyStorage.Delete(ctx, userID, publicKey)
+	if err != nil {
+		return apperrors.Internal("failed to delete wallet", err)
+	}
+
+	return nil
 }

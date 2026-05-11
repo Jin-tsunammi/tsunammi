@@ -15,9 +15,9 @@ func GetTipByTransactionSpeed(ctx context.Context, tipFloor *GetTipFloorResponse
 		case model.Default:
 			return 0.001, nil
 		case model.Fast:
-			return 0.0012, nil
+			return tipFloor.LandedTips95ThPercentile, nil
 		case model.Extra:
-			return 0.0015, nil
+			return tipFloor.LandedTips99ThPercentile, nil
 		default:
 			return 0.0, errors.New("invalid transaction speed")
 		}

@@ -195,7 +195,7 @@ func (m *CampaignManager) runCampaign(ctx context.Context, campaignID uuid.UUID)
 			)
 			return
 		}
-		if campaign.Status != model.SmartBuybackCampaignStatusActive {
+		if campaign.Status != model.BuybackStatusActive {
 			return
 		}
 

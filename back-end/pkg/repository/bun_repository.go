@@ -176,6 +176,16 @@ func (o *Options) ApplyFilters(q *bun.SelectQuery) *bun.SelectQuery {
 			filter.Value = fmt.Sprintf("%%%s%%", filter.Value)
 		}
 
+		if filter.Operator == "in" {
+			values := strings.Split(filter.Value, ",")
+			if filter.WhereOr {
+				q = q.WhereOr("? IN (?)", bun.Ident(filter.Column), bun.In(values))
+			} else {
+				q = q.Where("? IN (?)", bun.Ident(filter.Column), bun.In(values))
+			}
+			continue
+		}
+
 		if filter.Operator == "is" || filter.Operator == "is not" {
 			if strings.ToLower(filter.Operator) == "null" {
 				continue

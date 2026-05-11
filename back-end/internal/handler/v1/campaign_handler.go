@@ -248,50 +248,16 @@ func (h *CampaignHandler) GetCampaignsSummary(c fiber.Ctx) error {
 		return apperrors.Unauthorized("claims not found")
 	}
 
-	page := c.Query("page")
-	pageSize := c.Query("pageSize")
-
-	if (page == "" && pageSize != "") || (page != "" && pageSize == "") {
-		return apperrors.BadRequest("query params 'page' and 'pageSize' must be provided together. One is missing.")
+	var req model.CampaignsSummaryRequest
+	if err := c.Bind().Query(&req); err != nil {
+		return apperrors.BadRequest("invalid request", err)
 	}
 
-	parsedPage, parsedPageSize, err := parsePaginationParams(page, pageSize)
-
-	if err != nil {
-		return err
+	if err := req.Validate(); err != nil {
+		return apperrors.BadRequest(err.Error())
 	}
 
-	status := c.Query("status")
-	campaignType := c.Query("type")
-
-	var parsedStatus, parsedCampaignType string
-
-	switch status {
-	case model.StatusStop:
-		parsedStatus = model.StatusStop
-	case model.StatusInUse:
-		parsedStatus = model.StatusInUse
-	case model.StatusDone:
-		parsedStatus = model.StatusDone
-	case "":
-		parsedStatus = ""
-	default:
-		return apperrors.BadRequest("status must be either '', 'stop', 'in_use' or 'done'")
-	}
-
-	switch campaignType {
-	case "pull_up":
-		parsedCampaignType = model.TargetUpTaskType
-	case "pull_down":
-		parsedCampaignType = model.TargetDownTaskType
-	case "":
-		parsedCampaignType = ""
-	default:
-		return apperrors.BadRequest("type must be either '', 'pull_up' or 'pull_down'")
-
-	}
-
-	summary, err := h.CampaignService.GetCampaignsSummary(c.Context(), parsedPage, parsedPageSize, claims.UserID, parsedCampaignType, parsedStatus)
+	summary, err := h.CampaignService.GetCampaignsSummary(c.Context(), req.Page, req.PageSize, claims.UserID, req.Type, req.Status)
 	if err != nil {
 		return err
 	}

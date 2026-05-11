@@ -43,6 +43,7 @@ type SolanaRPC interface {
 	GetMultipleAccountsWithNoLimits(ctx context.Context, pubkeys ...solana.PublicKey) ([]*rpc.GetMultipleAccountsResult, error)
 	GetVoteAccountsNodeKeys(ctx context.Context, votePubkeys ...solana.PublicKey) ([]solana.PublicKey, error)
 	GetATARentExemption(ctx context.Context) (uint64, error)
+	GetRentExemption(ctx context.Context, size uint64) (uint64, error)
 	GetAverageSlotTime(ctx context.Context) (map[time.Duration]time.Duration, error)
 	GetTransaction(ctx context.Context, txHash solana.Signature, opts *rpc.GetTransactionOpts) (*rpc.GetTransactionResult, error)
 	GetTokenAccountsByOwner(ctx context.Context, owner solana.PublicKey, conf *rpc.GetTokenAccountsConfig, opts *rpc.GetTokenAccountsOpts) (out *rpc.GetTokenAccountsResult, err error)
@@ -69,9 +70,17 @@ func WithRetries(solanaClient SolanaRPC, retries int) SolanaRPC {
 }
 
 func (c *solanaRPCClient) GetATARentExemption(ctx context.Context) (uint64, error) {
-	rent, err := c.GetMinimumBalanceForRentExemption(ctx, AssociatedTokenAccountSize, rpc.CommitmentConfirmed)
+	rent, err := c.GetRentExemption(ctx, AssociatedTokenAccountSize)
 	if err != nil {
 		return 0.0, apperrors.Internal("failed to get associated token account rent exemption", err)
+	}
+	return rent, nil
+}
+
+func (c *solanaRPCClient) GetRentExemption(ctx context.Context, size uint64) (uint64, error) {
+	rent, err := c.GetMinimumBalanceForRentExemption(ctx, size, rpc.CommitmentConfirmed)
+	if err != nil {
+		return 0.0, apperrors.Internal("failed to get rent exemption", err)
 	}
 	return rent, nil
 }

@@ -61,6 +61,6 @@ func (s *AccountStorage) Save(ctx context.Context, secret AccountSecret) error {
 }
 
 func (s *AccountStorage) Delete(ctx context.Context, userID, exchangeAccountID, accountID uint64) error {
-	path := CreateAccountSecretPath(userID, exchangeAccountID, accountID)
+	path := CreateAccountMetedataPath(userID, exchangeAccountID, accountID)
 	return s.secretStorage.DeleteSecret(ctx, path)
 }

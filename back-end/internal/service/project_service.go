@@ -20,7 +20,7 @@ import (
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/programs/token"
 	"github.com/gagliardetto/solana-go/rpc"
-	"golang.org/x/sync/errgroup"
+	"go.uber.org/zap"
 )
 
 type ProjectService struct {
@@ -28,6 +28,7 @@ type ProjectService struct {
 	ProjectStorage    cache.ProjectStorage
 	Solana            solanarpc.SolanaRPC
 	RateCache         cache.RateStorage
+	log               *zap.Logger
 }
 
 func NewProjectService(
@@ -35,9 +36,10 @@ func NewProjectService(
 	solana solanarpc.SolanaRPC,
 	rateCache cache.RateStorage,
 	projectStorage cache.ProjectStorage,
+	log *zap.Logger,
 ) *ProjectService {
 	return &ProjectService{
-		ProjectStorage: projectStorage, ProjectRepository: projectRepository, Solana: solana, RateCache: rateCache}
+		ProjectStorage: projectStorage, ProjectRepository: projectRepository, Solana: solana, RateCache: rateCache, log: log}
 }
 
 func (s *ProjectService) CreateProject(ctx context.Context, req model.CreateProjectReq, userID uint64) (*model.Project, error) {
@@ -506,6 +508,11 @@ func (s *ProjectService) fetchProjectWalletBalanceWithTotal(ctx context.Context,
 	return fetchWalletsBalanceWithTotal(ctx, wallets, s.Solana, rate)
 }
 
+type walletResult struct {
+	key      string
+	accounts []*rpc.TokenAccount
+}
+
 func (s *ProjectService) enrichProjectResponsesWithTokens(ctx context.Context, projectsResponses []model.ProjectWithWalletsResponse) ([]model.ProjectWithWalletsResponse, error) {
 	if len(projectsResponses) == 0 {
 		return projectsResponses, nil
@@ -527,59 +534,34 @@ func (s *ProjectService) enrichProjectResponsesWithTokens(ctx context.Context, p
 	walletTokenAccounts := make(map[string][]*token.Account, len(uniqueWalletKeys))
 	uniqueTokenMints := make(map[solana.PublicKey]struct{}, len(uniqueWalletKeys))
 
-	walletMu := sync.Mutex{}
-	uniqueMu := sync.Mutex{}
+	inCh := make(chan solana.PublicKey)
+	accountsCh := s.processWallets(ctx, inCh)
 
-	eg, errCtx := errgroup.WithContext(ctx)
-	eg.SetLimit(1)
+	for k := range uniqueWalletKeys {
+		key, err := solana.PublicKeyFromBase58(k)
+		if err != nil {
+			return nil, err
+		}
 
-	for pubKey := range uniqueWalletKeys {
-		pk := pubKey
-
-		eg.Go(func() error {
-			timer := time.NewTimer(time.Millisecond * 500)
-			defer timer.Stop()
-
-			<-timer.C
-
-			key, err := solana.PublicKeyFromBase58(pk)
-			if err != nil {
-				return err
-			}
-			res, err := s.Solana.GetTokenAccountsByOwner(errCtx, key, &rpc.GetTokenAccountsConfig{ProgramId: &solana.TokenProgramID}, &rpc.GetTokenAccountsOpts{Encoding: solana.EncodingBase64, Commitment: rpc.CommitmentConfirmed})
-			if err != nil {
-				return err
-			}
-
-			walletTokens := make([]*token.Account, 0, len(res.Value))
-			for _, account := range res.Value {
-				data := account.Account.Data.GetBinary()
-				if data == nil {
-					continue
-				}
-
-				tokenAccount := token.Account{}
-				if err = tokenAccount.UnmarshalWithDecoder(bin.NewBinDecoder(data)); err != nil {
-					return err
-				}
-
-				uniqueMu.Lock()
-				uniqueTokenMints[tokenAccount.Mint] = struct{}{}
-				uniqueMu.Unlock()
-
-				walletTokens = append(walletTokens, &tokenAccount)
-			}
-
-			walletMu.Lock()
-			walletTokenAccounts[pk] = walletTokens
-			walletMu.Unlock()
-
-			return nil
-		})
+		inCh <- key
 	}
+	close(inCh)
 
-	if err := eg.Wait(); err != nil {
-		return nil, err
+	for r := range accountsCh {
+		for _, a := range r.accounts {
+			data := a.Account.Data.GetBinary()
+			if data == nil {
+				continue
+			}
+
+			var tokenAccount token.Account
+			if err := tokenAccount.UnmarshalWithDecoder(bin.NewBinDecoder(data)); err != nil {
+				return nil, err
+			}
+
+			uniqueTokenMints[tokenAccount.Mint] = struct{}{}
+			walletTokenAccounts[r.key] = append(walletTokenAccounts[r.key], &tokenAccount)
+		}
 	}
 
 	uniqueMints := slices.Collect(maps.Keys(uniqueTokenMints))
@@ -658,4 +640,55 @@ func (s *ProjectService) enrichProjectResponsesWithTokens(ctx context.Context, p
 	}
 
 	return projectsResponses, nil
+}
+
+func (s *ProjectService) processWallets(ctx context.Context, in <-chan solana.PublicKey) chan walletResult {
+	resCh := make(chan walletResult)
+	semaphore := make(chan struct{}, 5)
+	var wg sync.WaitGroup
+	go func() {
+		for {
+			v, ok := <-in
+			if !ok {
+				break
+			}
+
+			wg.Go(func() {
+				semaphore <- struct{}{}
+				defer func() { <-semaphore }()
+
+				res, err := s.Solana.GetTokenAccountsByOwner(ctx, v, &rpc.GetTokenAccountsConfig{ProgramId: &solana.TokenProgramID}, &rpc.GetTokenAccountsOpts{Encoding: solana.EncodingBase64, Commitment: rpc.CommitmentConfirmed})
+				if err != nil {
+					s.log.Error("failed to get token accounts", zap.Error(err))
+					return
+				}
+
+				resCh <- walletResult{
+					key:      v.String(),
+					accounts: res.Value,
+				}
+			})
+
+			wg.Go(func() {
+				semaphore <- struct{}{}
+				defer func() { <-semaphore }()
+
+				res, err := s.Solana.GetTokenAccountsByOwner(ctx, v, &rpc.GetTokenAccountsConfig{ProgramId: &solana.Token2022ProgramID}, &rpc.GetTokenAccountsOpts{Encoding: solana.EncodingBase64, Commitment: rpc.CommitmentConfirmed})
+				if err != nil {
+					s.log.Error("failed to get token accounts", zap.Error(err))
+					return
+				}
+
+				resCh <- walletResult{
+					key:      v.String(),
+					accounts: res.Value,
+				}
+			})
+		}
+
+		wg.Wait()
+		close(resCh)
+	}()
+
+	return resCh
 }

@@ -22,6 +22,7 @@ import (
 
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/programs/system"
+	jitorpc "github.com/jito-labs/jito-go-rpc"
 	"github.com/weeaa/jito-go/clients/searcher_client"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
@@ -29,7 +30,9 @@ import (
 )
 
 const (
-	BundleLimit = 5
+	BundleLimit              = 5
+	sendBundleMaxAttempts    = 3
+	sendBundleInitialBackoff = 250 * time.Millisecond
 )
 
 var FailedToProcessBundle = apperrors.Internal("failed to process bundle")
@@ -38,6 +41,7 @@ var BundleNotAccepted = apperrors.Internal("bundle not accepted")
 type Client struct {
 	restyClient   *resty.Client
 	jitoClients   *pool.CloseableRoundRobin[*searcher_client.Client]
+	jitoRPCClient *jitorpc.JitoJsonRpcClient
 	solanaWS      *solanaws.Client
 	solanaRPC     solanarpc.SolanaRPC
 	tipAccounts   []solana.PublicKey
@@ -49,10 +53,15 @@ type Client struct {
 }
 
 func NewClient(restyClient *resty.Client, solanaWS *solanaws.Client, solanaRPC solanarpc.SolanaRPC, jitoClients *pool.CloseableRoundRobin[*searcher_client.Client], tipAccounts []solana.PublicKey, config *config.Config, logger *zap.Logger) *Client {
+	jitoRPCURL := "https://frankfurt.mainnet.block-engine.jito.wtf/api/v1"
+	// if len(config.Jito.RpcURLs) > 0 {
+	// 	jitoRPCURL = normalizeJitoRPCBaseURL(config.Jito.RpcURLs[0])
+	// }
 
 	return &Client{
 		restyClient:   restyClient,
 		jitoClients:   jitoClients,
+		jitoRPCClient: jitorpc.NewJitoJsonRpcClient(jitoRPCURL, ""),
 		tipAccounts:   tipAccounts,
 		networkURL:    config.Jito.NetworkURL,
 		bundleURL:     config.Jito.BundleURL,
@@ -64,7 +73,22 @@ func NewClient(restyClient *resty.Client, solanaWS *solanaws.Client, solanaRPC s
 	}
 }
 
+func normalizeJitoRPCBaseURL(rawURL string) string {
+	rawURL = strings.TrimSpace(rawURL)
+	rawURL = strings.TrimSuffix(rawURL, "/")
+	rawURL = strings.TrimSuffix(rawURL, "/bundles")
+	rawURL = strings.TrimSuffix(rawURL, "/api/v1")
+
+	if !strings.HasPrefix(rawURL, "http://") && !strings.HasPrefix(rawURL, "https://") {
+		rawURL = "https://" + rawURL
+	}
+
+	return rawURL + "/api/v1"
+}
+
 func (c *Client) GetTipAccount(ctx context.Context) (*solana.PublicKey, error) {
+	k, err := solana.PublicKeyFromBase58("3AVi9Tg9Uo68tJfuvoKvqKNWKkC5wPdSSdeBnizKZ6jT")
+	return &k, err
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -93,6 +117,73 @@ func (c *Client) SendBundle(ctx context.Context, bundleTransactions []*solana.Tr
 		return &SendBundleResponse{BundleId: "region " + jitoClient.GrpcConn.Target() + " " + bundle.GetUuid()}, nil
 
 	}
+}
+
+func (c *Client) SendBundleRPC(ctx context.Context, bundleTransactions []*solana.Transaction) (*SendBundleResponse, error) {
+	encodedTxs := make([]string, len(bundleTransactions))
+	for i, tx := range bundleTransactions {
+		rawTx, err := tx.MarshalBinary()
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal bundle tx %d: %w", i, err)
+		}
+		encodedTxs[i] = base64.StdEncoding.EncodeToString(rawTx)
+	}
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
+	result, err := c.jitoRPCClient.SendBundle([][]string{encodedTxs})
+	if err != nil {
+		return nil, fmt.Errorf("jito rpc sendBundle failed: %w", err)
+	}
+
+	var bundleID string
+	if err := json.Unmarshal(result, &bundleID); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal jito rpc bundle id from %s: %w", string(result), err)
+	}
+	if bundleID == "" {
+		return nil, fmt.Errorf("jito rpc sendBundle returned empty bundle id")
+	}
+
+	return &SendBundleResponse{BundleId: bundleID}, nil
+}
+
+func (c *Client) SendBundleRPCWithRetry(ctx context.Context, bundleTransactions []*solana.Transaction) (*SendBundleResponse, error) {
+	backoff := sendBundleInitialBackoff
+	var lastErr error
+
+	for attempt := 1; attempt <= sendBundleMaxAttempts; attempt++ {
+		bundleID, err := c.SendBundleRPC(ctx, bundleTransactions)
+		if err == nil {
+			return bundleID, nil
+		}
+		lastErr = err
+
+		if attempt == sendBundleMaxAttempts {
+			break
+		}
+
+		c.logger.Warn("jito send bundle attempt failed",
+			zap.Int("attempt", attempt),
+			zap.Int("max_attempts", sendBundleMaxAttempts),
+			zap.Duration("retry_after", backoff),
+			zap.Error(err),
+		)
+
+		timer := time.NewTimer(backoff)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, ctx.Err()
+		case <-timer.C:
+		}
+		backoff *= 2
+	}
+
+	return nil, fmt.Errorf("jito rpc sendBundle failed after %d attempts: %w", sendBundleMaxAttempts, lastErr)
 }
 
 func (c *Client) GetTipFloor(ctx context.Context) (*GetTipFloorResponse, error) {
@@ -267,6 +358,67 @@ func BuildTipTransaction(
 	return tx, nil
 }
 
+// BroadcastBundleNoSim sends a bundle without prior simulation.
+// Use when bundle txs reference accounts that don't exist on-chain yet (e.g. pumpfun launch).
+func (c *Client) BroadcastBundleNoSim(
+	ctx context.Context,
+	bundle []*solana.Transaction,
+) error {
+	if len(bundle) == 0 {
+		return apperrors.BadRequest("empty bundle")
+	}
+
+	gCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	eg, errCtx := errgroup.WithContext(gCtx)
+
+	watchTx := bundle[0].Signatures[0]
+
+	eg.Go(func() error {
+		_, err := c.solanaWS.AwaitConfirmationTransaction(errCtx, watchTx, c.bundleTimeout)
+		if err != nil {
+			return fmt.Errorf("bundle rejected while awaiting confirmation: %w: %w", swaperror.ErrBundleRejected, err)
+		}
+		return nil
+	})
+
+	bundleID, err := c.SendBundleRPCWithRetry(ctx, bundle)
+	if err != nil {
+		cancel()
+		c.logger.Error("failed to send bundle", zap.Error(err))
+		return apperrors.Internal("jito send bundle failed: %w", err)
+	}
+
+	c.logger.Info("bundle sent", zap.String("bundle_id", bundleID.BundleId))
+	c.logger.Info("bundle watch transaction", zap.String("tx", watchTx.String()))
+
+	if err := eg.Wait(); err != nil {
+		c.logBundleStatus(bundleID.BundleId)
+		return err
+	}
+
+	c.logBundleStatus(bundleID.BundleId)
+
+	return nil
+}
+
+func (c *Client) logBundleStatus(bundleID string) {
+	status, err := c.jitoRPCClient.GetBundleStatuses([]string{bundleID})
+	if err != nil {
+		c.logger.Warn("failed to fetch jito bundle status",
+			zap.String("bundle_id", bundleID),
+			zap.Error(err),
+		)
+		return
+	}
+
+	c.logger.Info("jito bundle status",
+		zap.String("bundle_id", bundleID),
+		zap.Any("status", status.Value),
+	)
+}
+
 func (c *Client) SimulateBundle(ctx context.Context, tsx []*solana.Transaction, poolProgramID solana.PublicKey) error {
 
 	encodedTxs := make([]string, len(tsx))
@@ -314,7 +466,7 @@ func (c *Client) SimulateBundle(ctx context.Context, tsx []*solana.Transaction, 
 			}{
 				PreExecutionAccountsConfigs:  accountsConfigsList,
 				PostExecutionAccountsConfigs: accountsConfigsList,
-				SkipSigVerify:                true,
+				SkipSigVerify:                false,
 				SimulationBank: map[string]interface{}{
 					"commitment": map[string]string{"commitment": "processed"},
 				},
@@ -323,7 +475,6 @@ func (c *Client) SimulateBundle(ctx context.Context, tsx []*solana.Transaction, 
 			},
 		},
 	}
-
 	var response simulateBundleResponse
 
 	data, err := c.restyClient.R().
@@ -371,6 +522,18 @@ func (c *Client) SimulateBundle(ctx context.Context, tsx []*solana.Transaction, 
 		err = json.Unmarshal(bytes, &simErr)
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal into struct: %w", err)
+		}
+
+		for i, txResult := range response.Result.Value.TransactionResults {
+			if txResult.Err != nil {
+				c.logger.Error("simulation tx failed",
+					zap.Int("tx_index", i),
+					zap.String("tx_signature", simErr.Failed.TxSignature),
+					zap.Any("err", txResult.Err),
+					zap.Strings("logs", txResult.Logs),
+				)
+				break
+			}
 		}
 
 		code, err := simErr.ParseErrorCode()

@@ -91,6 +91,10 @@ func Module() fx.Option {
 			repository.NewGenericRepository[model.BuybackTransaction, uint64],
 			NewBuybackTransactionRepository,
 		),
+		fx.Provide(
+			repository.NewGenericRepository[model.PumpfunLaunch, uuid.UUID],
+			NewPumpfunLaunchRepository,
+		),
 
 		fx.Invoke(
 			func(lc fx.Lifecycle, db *bun.DB) {

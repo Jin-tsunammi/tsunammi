@@ -10,12 +10,12 @@ import (
 type Wallet struct {
 	bun.BaseModel `bun:"table:wallets,alias:w" swaggerignore:"true"`
 
-	ID         uint64   `json:"id" db:"id" bun:"id,pk,autoincrement" example:"1234567890"`
-	PublicKey  string   `json:"public_key" db:"public_key" bun:"public_key" example:"88888888SOL88888888SOL88888888SOL8888888"`
-	PrivateKey string   `json:"private_key" bun:"-" example:"55bjLUoWhf2dFWnGEeLzCBdf5AuuJgWwRh7HghN2LoimnmjWz3qNgmni64x6nM3uTWqRNAET2cwef9pz21Zv4C2S"`
-	UserID     uint64   `json:"-" db:"user_id" bun:"user_id"`
-	Status     Status   `json:"-" db:"status" bun:"status,notnull"`
-	ProjectIDs []uint64 `json:"-" bun:"project_ids,array,scanonly"`
+	ID         uint64       `json:"id" db:"id" bun:"id,pk,autoincrement" example:"1234567890"`
+	PublicKey  string       `json:"public_key" db:"public_key" bun:"public_key" example:"88888888SOL88888888SOL88888888SOL8888888"`
+	PrivateKey string       `json:"private_key" bun:"-" example:"55bjLUoWhf2dFWnGEeLzCBdf5AuuJgWwRh7HghN2LoimnmjWz3qNgmni64x6nM3uTWqRNAET2cwef9pz21Zv4C2S"`
+	UserID     uint64       `json:"-" db:"user_id" bun:"user_id"`
+	Status     WalletStatus `json:"-" db:"status" bun:"status,notnull"`
+	ProjectIDs []uint64     `json:"-" bun:"project_ids,array,scanonly"`
 
 	BalanceToken float64 `json:"-" bun:"-"`
 	BalanceSOL   float64 `json:"-" bun:"-"`

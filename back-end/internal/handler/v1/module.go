@@ -2,6 +2,7 @@ package v1
 
 import (
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/static"
 	"go.uber.org/fx"
 )
 
@@ -20,6 +21,8 @@ func Module() fx.Option {
 			NewUtilHandler,
 			NewSwaggerHandler,
 			NewBuybackHandler,
+			NewUploadHandler,
+			NewPumpfunLaunchHandler,
 		),
 		fx.Invoke(func(app *fiber.App, accountHandler *AccountHandler, auth *AuthHandler) {
 			accountHandler.RegisterRoutes(app, auth)
@@ -56,6 +59,15 @@ func Module() fx.Option {
 		}),
 		fx.Invoke(func(app *fiber.App, swaggerHandler *SwaggerHandler) {
 			swaggerHandler.RegisterRoutes(app)
+		}),
+		fx.Invoke(func(app *fiber.App, uploadHandler *UploadHandler, auth *AuthHandler) {
+			uploadHandler.RegisterRoutes(app, auth)
+		}),
+		fx.Invoke(func(app *fiber.App, h *PumpfunLaunchHandler, auth *AuthHandler) {
+			h.registerRoutes(app, auth)
+		}),
+		fx.Invoke(func(app *fiber.App) {
+			app.Get("/static/*", static.New("./resources/static"))
 		}),
 	)
 }

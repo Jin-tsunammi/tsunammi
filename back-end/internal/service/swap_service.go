@@ -202,7 +202,7 @@ func (s *SwapService) CreatePullUpCampaign(ctx context.Context, req *model.Targe
 		SlippageBPS:                percentageToBasicPoints(req.Slippage),
 		StartedPrice:               mtype.NewDBBigRat(startedPrice),
 		GoalPrice:                  mtype.NewDBBigRat(goalPrice),
-		Status:                     model.StatusInUse,
+		Status:                     model.SwapStatusActive,
 		ParallelTransactionsAmount: parallelTransactionsAmount,
 		MinTransactionsBudget:      req.MinTransactionsBudget,
 		MaxTransactionsBudget:      req.MaxTransactionsBudget,
@@ -373,7 +373,7 @@ func (s *SwapService) CreatePullDownCampaign(ctx context.Context, req *model.Tar
 		SlippageBPS:                percentageToBasicPoints(req.Slippage),
 		StartedPrice:               mtype.NewDBBigRat(startedPrice),
 		GoalPrice:                  mtype.NewDBBigRat(goalPrice),
-		Status:                     model.StatusInUse,
+		Status:                     model.SwapStatusActive,
 		ParallelTransactionsAmount: parallelTransactionsAmount,
 		MinTransactionsBudget:      req.MinTransactionsBudget,
 		MaxTransactionsBudget:      req.MaxTransactionsBudget,
@@ -424,6 +424,18 @@ func (s *SwapService) EstimateSwapCost(ctx context.Context, req *model.EstimateP
 		return nil, apperrors.BadRequest("cannot find pool for swap", err)
 	}
 
+	budgetSOL := req.Budget
+
+	// pulldown
+	if !solutil.IsSOLLikeMint(req.SourceTokenMint) {
+		_, price, err := provider.PreparePool(ctx, req.SourceTokenMint, req.DestTokenMint)
+		if err != nil {
+			return nil, apperrors.BadRequest("cannot prepare pool for estimate", err)
+		}
+		price_, _ := price.Float64()
+		budgetSOL = req.Budget * price_
+	}
+
 	wallets, _, err := s.fetchFundedWallets(ctx, req.ProjectID, userID, 0, req.SourceTokenMint)
 	if err != nil {
 		return nil, err
@@ -453,17 +465,18 @@ func (s *SwapService) EstimateSwapCost(ctx context.Context, req *model.EstimateP
 		}
 	}
 
-	tipFloor, err := s.jitoClient.GetTipFloor(ctx)
-	if err != nil {
-		return nil, apperrors.Internal("failed to get tip floor", err)
-	}
+	// tipFloor, err := s.jitoClient.GetTipFloor(ctx)
+	// if err != nil {
+	// 	return nil, apperrors.Internal("failed to get tip floor", err)
+	// }
 
-	jitoTip, err := jito.GetTipByTransactionSpeed(ctx, tipFloor, req.TransactionSpeed)
-	if err != nil {
-		return nil, apperrors.Internal("failed to get tip by transaction speed", err)
-	}
+	// jitoTip, err := jito.GetTipByTransactionSpeed(ctx, tipFloor, req.TransactionSpeed)
+	// if err != nil {
+	// 	return nil, apperrors.Internal("failed to get tip by transaction speed", err)
+	// }
 
-	tipSOL := jitoTip*float64(len(wallets)) + pool.FeeRate*req.Budget
+	// jitoTipSOL := jitoTip * float64(len(wallets))
+	poolFeeSOL := pool.FeeRate * budgetSOL
 
 	accounts := []string{
 		wallets[0].PublicKey,
@@ -482,9 +495,10 @@ func (s *SwapService) EstimateSwapCost(ctx context.Context, req *model.EstimateP
 	veryHighTotalSOL := calculatePriorityFee(feeLevels.VeryHigh, s.computeUnixLimit)
 
 	return &model.TargetPullEstimateResponse{
-		BudgetSOL: req.Budget,
-		TipSOL:    tipSOL,
-		RentSOl:   ataRentSol,
+		// JitoTipSOL: jitoTipSOL,
+		Budget:  req.Budget,
+		PoolFee: poolFeeSOL,
+		Rent:    ataRentSol,
 		PriorityFees: model.PriorityFees{
 			Low:    lowTotalSOL,
 			Medium: mediumTotalSOL,

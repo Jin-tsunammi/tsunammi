@@ -76,7 +76,7 @@ func (m *CampaignManager) selectTargets(campaign *model.SmartBuybackCampaignWith
 		if t.StartAt.After(now) {
 			continue
 		}
-		if t.Status != model.SmartBuybackTargetStatusActive && t.Status != model.SmartBuybackTargetStatusScheduled {
+		if t.Status != model.BuybackStatusActive && t.Status != model.BuybackStatusScheduled {
 			continue
 		}
 		activeTypes[t.Type] = struct{}{}
@@ -100,7 +100,7 @@ func (m *CampaignManager) selectTargets(campaign *model.SmartBuybackCampaignWith
 			if t.Type != tType || t.StartAt.After(now) {
 				continue
 			}
-			if t.Status != model.SmartBuybackTargetStatusActive && t.Status != model.SmartBuybackTargetStatusScheduled {
+			if t.Status != model.BuybackStatusActive && t.Status != model.BuybackStatusScheduled {
 				continue
 			}
 
@@ -370,10 +370,12 @@ func (m *CampaignManager) fetchFundedWallets(ctx context.Context, projectID, use
 		decimals = tokenMint.Decimals
 	}
 
+	fmt.Println(projectID, userID)
 	project, err := m.projectRepo.FetchProjectWithWalletsByID(ctx, projectID, userID)
 	if err != nil {
 		return nil, 0, apperrors.Internal("failed to fetch project", err)
 	}
+	fmt.Printf("project: %+v\n", project)
 	if len(project.Wallets) > 300 {
 		return nil, 0, apperrors.BadRequest("too many wallets in project", nil)
 	}
@@ -704,9 +706,7 @@ func (m *CampaignManager) persistTargetBudget(ctx context.Context, campaignID, t
 	if remainingAtomic.Sign() <= 0 ||
 		errors.Is(swapErr, swaperror.BudgetExceededError) ||
 		errors.Is(swapErr, pumpBonding.NotEnoughTokensToSellError) {
-		status = model.SmartBuybackTargetStatusBudgetDone
-	} else if errors.Is(swapErr, raydium.PriceIsAlreadyReachedError) {
-		status = model.SmartBuybackTargetStatusDone
+		status = string(model.BuybackStatusDone)
 	}
 
 	if err := m.buybackRepo.UpdateTargetRemainingBudget(ctx, targetID, remaining, status); err != nil {
@@ -735,18 +735,11 @@ func resolveBuybackBatchError(errs []error) error {
 			return swaperror.BudgetExceededError
 		}
 	}
-	for _, err := range errs {
-		if errors.Is(err, raydium.PriceIsAlreadyReachedError) {
-			return raydium.PriceIsAlreadyReachedError
-		}
-	}
-
 	return nil
 }
 
 func isTerminalBuybackTargetError(err error) bool {
-	return errors.Is(err, raydium.PriceIsAlreadyReachedError) ||
-		errors.Is(err, swaperror.BudgetExceededError) ||
+	return errors.Is(err, swaperror.BudgetExceededError) ||
 		errors.Is(err, pumpBonding.NotEnoughTokensToSellError)
 }
 

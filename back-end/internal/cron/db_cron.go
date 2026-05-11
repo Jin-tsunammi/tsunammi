@@ -20,7 +20,7 @@ import (
 
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
-rcron "github.com/robfig/cron/v3"
+	rcron "github.com/robfig/cron/v3"
 	"github.com/uptrace/bun"
 	"go.uber.org/zap"
 )
@@ -28,15 +28,16 @@ rcron "github.com/robfig/cron/v3"
 var timeoutDuration = 5 * time.Minute
 
 type DBCron struct {
-	AccountRepository         *repository.AccountRepository
-	UserHistoryRepository     *repository.UserHistoryRepository
-	WalletRepository          *repository.WalletRepository
-	ProjectRepository         *repository.ProjectRepository
-	SwapCampaignRepository    *repository.SwapCampaignRepository
-	SwapTransactionRepository *repository.SwapTransactionRepository
-	DepositRepository         *repository.DepositRepository
-	SecretStorage             secret.Storage
-	TransactionManager        *repo.TransactionManager
+	AccountRepository            *repository.AccountRepository
+	UserHistoryRepository        *repository.UserHistoryRepository
+	WalletRepository             *repository.WalletRepository
+	ProjectRepository            *repository.ProjectRepository
+	SwapCampaignRepository       *repository.SwapCampaignRepository
+	SwapTransactionRepository    *repository.SwapTransactionRepository
+	BuybackTransactionRepository *repository.BuybackTransactionRepository
+	DepositRepository            *repository.DepositRepository
+	SecretStorage                secret.Storage
+	TransactionManager           *repo.TransactionManager
 
 	SolanaRPC solanarpc.SolanaRPC
 
@@ -53,6 +54,7 @@ func NewDBCron(
 	projectRepository *repository.ProjectRepository,
 	swapCampaignRepository *repository.SwapCampaignRepository,
 	swapTransactionRepository *repository.SwapTransactionRepository,
+	buybackTransactionRepository *repository.BuybackTransactionRepository,
 	depositRepository *repository.DepositRepository,
 	secretStorage secret.Storage,
 	transactionManager *repo.TransactionManager,
@@ -65,15 +67,16 @@ func NewDBCron(
 	cfg *config.Config,
 ) *DBCron {
 	dbCron := &DBCron{
-		AccountRepository:         accountRepository,
-		UserHistoryRepository:     userHistoryRepository,
-		WalletRepository:          walletRepository,
-		ProjectRepository:         projectRepository,
-		SwapCampaignRepository:    swapCampaignRepository,
-		SwapTransactionRepository: swapTransactionRepository,
-		DepositRepository:         depositRepository,
-		SecretStorage:             secretStorage,
-		TransactionManager:        transactionManager,
+		AccountRepository:            accountRepository,
+		UserHistoryRepository:        userHistoryRepository,
+		WalletRepository:             walletRepository,
+		ProjectRepository:            projectRepository,
+		SwapCampaignRepository:       swapCampaignRepository,
+		SwapTransactionRepository:    swapTransactionRepository,
+		BuybackTransactionRepository: buybackTransactionRepository,
+		DepositRepository:            depositRepository,
+		SecretStorage:                secretStorage,
+		TransactionManager:           transactionManager,
 
 		SolanaRPC: solanaRPC,
 
@@ -100,7 +103,7 @@ func (c *DBCron) registerJobs() {
 	accountsDeletedSpec := durationToCron(c.Cfg.Job.AccountsDeletedCheckInterval)
 	walletsPendingCreateSpec := durationToCron(c.Cfg.Job.WalletsPendingCreateCheckInterval)
 	walletsPendingImportSpec := durationToCron(c.Cfg.Job.WalletsPendingImportCheckInterval)
-	transactionPendingSpec := durationToCron(c.Cfg.Job.TransactionPendingCheckInterval)
+	transactionPendingSpec := durationToCron(time.Minute)
 	withdrawLimitSpec := durationToCron(c.Cfg.Job.WithdrawLimitCheckInterval)
 
 	add(accountsPendingSpec, c.checkPendingAccounts)
@@ -138,7 +141,7 @@ func (c *DBCron) checkDeletedAccounts() {
 
 	duration := c.Cfg.Job.AccountsDeletedCheckInterval
 
-	accounts, err := c.AccountRepository.FindAllOlderThanByStatus(ctx, duration, model.AccountDeleted)
+	accounts, err := c.AccountRepository.FindAllOlderThanByStatus(ctx, duration, model.AccountStatusDeleted)
 
 	if err != nil {
 		c.Log.Error("failed to get pending accounts", zap.Error(err))
@@ -177,7 +180,7 @@ func (c *DBCron) checkDeletedAccounts() {
 			return
 		}
 
-		account.Status = model.AccountActive
+		account.Status = model.AccountStatusActive
 		_ = c.AccountRepository.Update(ctx, account)
 
 	}
@@ -189,7 +192,7 @@ func (c *DBCron) checkPendingAccounts() {
 
 	duration := c.Cfg.Job.AccountsPendingCheckInterval
 
-	accounts, err := c.AccountRepository.FindAllOlderThanByStatus(ctx, duration, model.AccountPending)
+	accounts, err := c.AccountRepository.FindAllOlderThanByStatus(ctx, duration, model.AccountStatusPending)
 
 	if err != nil {
 		c.Log.Error("failed to get pending accounts", zap.Error(err))
@@ -215,7 +218,7 @@ func (c *DBCron) checkPendingAccounts() {
 		_ = c.TransactionManager.WithinTransaction(ctx,
 			func(ctx context.Context, tx bun.Tx) error {
 
-				account.Status = model.AccountActive
+				account.Status = model.AccountStatusActive
 				err = c.AccountRepository.WithTx(tx).Update(ctx, account)
 				if err != nil {
 					return err
@@ -234,15 +237,15 @@ func (c *DBCron) checkPendingAccounts() {
 
 func (c *DBCron) checkPendingImportWallets() {
 	ctx := context.Background()
-	c.processPendingWallets(ctx, c.Cfg.Job.WalletsPendingImportCheckInterval, model.ImportPending)
+	c.processPendingWallets(ctx, c.Cfg.Job.WalletsPendingImportCheckInterval, model.WalletStatusImportPending)
 }
 
 func (c *DBCron) checkPendingCreationWallets() {
 	ctx := context.Background()
-	c.processPendingWallets(ctx, c.Cfg.Job.WalletsPendingCreateCheckInterval, model.CreationPending)
+	c.processPendingWallets(ctx, c.Cfg.Job.WalletsPendingCreateCheckInterval, model.WalletStatusCreationPending)
 }
 
-func (c *DBCron) processPendingWallets(ctx context.Context, interval time.Duration, status model.Status) {
+func (c *DBCron) processPendingWallets(ctx context.Context, interval time.Duration, status model.WalletStatus) {
 	c.Log.Info("processing pending wallets", zap.Duration("interval", interval))
 	projects, err := c.ProjectRepository.FindAllOlderThanWithWalletsByStatus(ctx, interval, status)
 
@@ -273,7 +276,7 @@ func (c *DBCron) processPendingWallets(ctx context.Context, interval time.Durati
 				continue
 			}
 
-			wallet.Status = model.Success
+			wallet.Status = model.WalletStatusSuccess
 			walletsToUpdate = append(walletsToUpdate, *wallet)
 
 		}
@@ -285,9 +288,9 @@ func (c *DBCron) processPendingWallets(ctx context.Context, interval time.Durati
 		message := ""
 
 		switch status {
-		case model.ImportPending:
+		case model.WalletStatusImportPending:
 			message = fmt.Sprintf("imported %d wallets with %s", len(wallets), project.Name)
-		case model.CreationPending:
+		case model.WalletStatusCreationPending:
 			message = fmt.Sprintf("created %d wallets with %s", len(wallets), project.Name)
 		}
 
@@ -331,21 +334,28 @@ func (c *DBCron) processPendingTransactions() error {
 	ctx := context.Background()
 	c.Log.Info("starting processing pending transactions", zap.Duration("interval", c.Cfg.Job.TransactionPendingCheckInterval))
 
-	transactions, err := c.SwapTransactionRepository.FindAllByStatus(ctx, "Pending")
+	swapTransactions, err := c.SwapTransactionRepository.FindAllByStatus(ctx, "Pending")
 	if err != nil {
 		c.Log.Error("failed to get pending swap transactions", zap.Error(err))
 		return err
 	}
-	c.Log.Info("fetched pending swap transactions", zap.Int("count", len(transactions)))
+	c.Log.Info("fetched pending swap transactions", zap.Int("count", len(swapTransactions)))
 
-	trans, err := c.DepositRepository.GetAllBySum(ctx, mtype.NewDBBigRat(big.NewRat(0, 1)))
+	buybackTransactions, err := c.BuybackTransactionRepository.FindAllByStatus(ctx, "Pending")
+	if err != nil {
+		c.Log.Error("failed to get pending buyback transactions", zap.Error(err))
+		return err
+	}
+	c.Log.Info("fetched pending buyback transactions", zap.Int("count", len(buybackTransactions)))
+
+	deposits, err := c.DepositRepository.GetAllBySum(ctx, mtype.NewDBBigRat(big.NewRat(0, 1)))
 	if err != nil {
 		c.Log.Error("failed to get deposits without balance", zap.Error(err))
 		return err
 	}
-	c.Log.Info("fetched deposits without balance", zap.Int("count", len(trans)))
+	c.Log.Info("fetched deposits without balance", zap.Int("count", len(deposits)))
 
-	totalToProcess := len(transactions) + len(trans)
+	totalToProcess := len(swapTransactions) + len(buybackTransactions) + len(deposits)
 	if totalToProcess == 0 {
 		c.Log.Info("no pending transactions to process")
 		return nil
@@ -354,7 +364,7 @@ func (c *DBCron) processPendingTransactions() error {
 	errs := make([]error, totalToProcess)
 	transactionsSignatures := make([]solana.Signature, totalToProcess)
 
-	for index, transaction := range transactions {
+	for index, transaction := range swapTransactions {
 		sig, tErr := solana.SignatureFromBase58(transaction.TransactionHash)
 		if tErr != nil {
 			c.Log.Warn("failed to parse swap signature", zap.String("hash", transaction.TransactionHash), zap.Error(tErr))
@@ -364,14 +374,24 @@ func (c *DBCron) processPendingTransactions() error {
 		transactionsSignatures[index] = sig
 	}
 
-	for index, transaction := range trans {
+	for index, transaction := range buybackTransactions {
+		sig, tErr := solana.SignatureFromBase58(transaction.TransactionHash)
+		if tErr != nil {
+			c.Log.Warn("failed to parse buyback signature", zap.String("hash", transaction.TransactionHash), zap.Error(tErr))
+			errs[index] = tErr
+			continue
+		}
+		transactionsSignatures[index] = sig
+	}
+
+	for index, transaction := range deposits {
 		sig, tErr := solana.SignatureFromBase58(transaction.TransactionID)
 		if tErr != nil {
 			c.Log.Warn("failed to parse deposit signature", zap.String("hash", transaction.TransactionID), zap.Error(tErr))
-			errs[index+len(transactions)] = tErr
+			errs[index+len(swapTransactions)] = tErr
 			continue
 		}
-		transactionsSignatures[index+len(transactions)] = sig
+		transactionsSignatures[index+len(swapTransactions)] = sig
 	}
 
 	var wg sync.WaitGroup
@@ -494,27 +514,46 @@ func (c *DBCron) processPendingTransactions() error {
 		c.Log.Warn("some transactions failed during RPC fetching", zap.Error(err))
 	}
 
-	var transactionsToUpdate []model.SwapTransaction
-	for i := range transactions {
-		t := &transactions[i]
+	var swapTransactionsToUpdate []model.SwapTransaction
+	var buybackTransactionsToUpdate []model.BuybackTransaction
+	for i := range swapTransactions {
+		t := &swapTransactions[i]
 		if amt, ok := amounts[t.TransactionHash]; ok {
 			t.AmountTokenFrom = amt[t.TokenMintFrom]
 			t.AmountTokenTo = amt[t.TokenMintTo]
 			t.Status = "Success"
-			transactionsToUpdate = append(transactionsToUpdate, *t)
+			swapTransactionsToUpdate = append(swapTransactionsToUpdate, *t)
 			c.Log.Info("mapping swap result success", zap.String("hash", t.TransactionHash))
 		} else {
 			if time.Since(t.CreatedAt) > timeoutDuration {
 				t.Status = "Failed"
-				transactionsToUpdate = append(transactionsToUpdate, *t)
+				swapTransactionsToUpdate = append(swapTransactionsToUpdate, *t)
 				c.Log.Warn("swap marked as failed due to timeout", zap.String("hash", t.TransactionHash))
 			}
 		}
 	}
 
+	for i := range buybackTransactions {
+		t := &buybackTransactions[i]
+		if amt, ok := amounts[t.TransactionHash]; ok {
+			t.AmountTokenFrom = amt[t.TokenMintFrom]
+			t.AmountTokenTo = amt[t.TokenMintTo]
+			t.Status = "Success"
+			buybackTransactionsToUpdate = append(buybackTransactionsToUpdate, *t)
+			c.Log.Info("mapping buyback result success", zap.String("hash", t.TransactionHash))
+		} else {
+			if time.Since(t.CreatedAt) > timeoutDuration {
+				t.Status = "Failed"
+				buybackTransactionsToUpdate = append(buybackTransactionsToUpdate, *t)
+				c.Log.Warn("buyback marked as failed due to timeout", zap.String("hash", t.TransactionHash))
+			}
+		}
+
+	}
+
 	var depositsToUpdate []model.Deposit
-	for i := range trans {
-		t := &trans[i]
+	for i := range deposits {
+		t := &deposits[i]
 		if amt, ok := amounts[t.TransactionID]; ok {
 			t.Status = model.DepositCompleted
 			t.Amount = amt[solana.SolMint.String()]
@@ -529,14 +568,22 @@ func (c *DBCron) processPendingTransactions() error {
 		}
 	}
 
-	if len(transactionsToUpdate) > 0 {
-		chunks := slices.Collect(slices.Chunk(transactionsToUpdate, 500))
+	if len(swapTransactionsToUpdate) > 0 {
+		chunks := slices.Collect(slices.Chunk(swapTransactionsToUpdate, 500))
 		for _, chunk := range chunks {
 			if err = c.SwapTransactionRepository.UpdateAll(ctx, chunk); err != nil {
 				c.Log.Error("failed to update swap transactions batch", zap.Error(err))
 			}
 		}
+	}
 
+	if len(buybackTransactionsToUpdate) > 0 {
+		chunks := slices.Collect(slices.Chunk(buybackTransactionsToUpdate, 500))
+		for _, chunk := range chunks {
+			if err = c.BuybackTransactionRepository.UpdateAll(ctx, chunk); err != nil {
+				c.Log.Error("failed to update buyback transactions batch", zap.Error(err))
+			}
+		}
 	}
 
 	if len(depositsToUpdate) > 0 {

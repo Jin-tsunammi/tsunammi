@@ -21,6 +21,7 @@ func Module() fx.Option {
 			NewSwapService,
 			NewCampaignService,
 			NewSmartBuybackService,
+			NewPumpfunLaunchService,
 		),
 	)
 }

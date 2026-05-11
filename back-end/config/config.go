@@ -19,15 +19,20 @@ const (
 )
 
 type Config struct {
-	HTTP   HttpConfig
-	DB     DBConfig
-	App    AppConfig
-	Crypto CryptoConfig
-	Auth   AuthConfig
-	Brevo  BrevoConfig
-	Vault  VaultConfig
-	Job    JobConfig
-	Jito   JitoConfig
+	HTTP       HttpConfig
+	DB         DBConfig
+	App        AppConfig
+	Crypto     CryptoConfig
+	Auth       AuthConfig
+	Brevo      BrevoConfig
+	Vault      VaultConfig
+	Job        JobConfig
+	Jito       JitoConfig
+	Lighthouse LighthouseConfig
+}
+
+type LighthouseConfig struct {
+	ApiKey string `env:"LIGHTHOUSE_API_KEY"`
 }
 
 type HttpConfig struct {
@@ -81,6 +86,7 @@ type JitoConfig struct {
 	SlotPadding       uint64        `env:"JITO_SLOT_PADDING" envDefault:"2"`
 	BundleTimeout     time.Duration `env:"JITO_BUNDLE_TIMEOUT" envDefault:"15s"`
 	ValidatorInterval time.Duration `env:"JITO_VALIDATOR_INTERVAL" envDefault:"90m"`
+	PumpfunCreateTip  uint64        `env:"PUMPFUN_CREATE_JITO_TIP_LAMPORTS" envDefault:"2000000"`
 }
 
 type AppConfig struct {

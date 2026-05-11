@@ -158,7 +158,7 @@ func (r *SwapCampaignRepository) GetByIDAndUserID(ctx context.Context, campaignI
 	return campaign, nil
 }
 
-func (r *SwapCampaignRepository) UpdateStatusByID(ctx context.Context, status string, campaignID uuid.UUID) error {
+func (r *SwapCampaignRepository) UpdateStatusByID(ctx context.Context, status model.SwapStatus, campaignID uuid.UUID) error {
 	_, err := r.DB.NewUpdate().
 		Model((*model.SwapCampaign)(nil)).
 		Where("id = ?", campaignID).
@@ -171,14 +171,14 @@ func (r *SwapCampaignRepository) UpdateDoneIfNoPendingTransactions(ctx context.C
 	result, err := r.DB.NewUpdate().
 		Model((*model.SwapCampaign)(nil)).
 		Where("id = ?", campaignID).
-		Where("status = ?", model.StatusInUse).
+		Where("status = ?", model.SwapStatusActive).
 		Where(`NOT EXISTS (
 			SELECT 1
 			FROM swap_transactions AS st
 			WHERE st.campaign_id = ?
 			  AND st.status = 'Pending'
 		)`, campaignID).
-		Set("status = ?", model.StatusDone).
+		Set("status = ?", model.SwapStatusDone).
 		Exec(ctx)
 	if err != nil {
 		return false, err
@@ -192,7 +192,7 @@ func (r *SwapCampaignRepository) UpdateDoneIfNoPendingTransactions(ctx context.C
 	return rowsAffected > 0, nil
 }
 
-func (r *SwapCampaignRepository) GetCampaignsSummary(ctx context.Context, page, pageSize int, userID uint64, campaignType, status string) ([]model.CampaignSummary, int, error) {
+func (r *SwapCampaignRepository) GetCampaignsSummary(ctx context.Context, page, pageSize int, userID uint64, campaignType string, status model.SwapStatus) ([]model.CampaignSummary, int, error) {
 	var summaries []model.CampaignSummary
 	query := r.DB.NewSelect().
 		TableExpr("swap_campaigns sc").
@@ -209,13 +209,8 @@ func (r *SwapCampaignRepository) GetCampaignsSummary(ctx context.Context, page, 
 		query = query.Where("swapct.name = 'PULL DOWN'")
 	}
 
-	switch status {
-	case model.StatusStop:
-		query = query.Where("sc.status = ?", model.StatusStop)
-	case model.StatusDone:
-		query = query.Where("sc.status = ?", model.StatusDone)
-	case model.StatusInUse:
-		query = query.Where("sc.status = ?", model.StatusInUse)
+	if status != "" {
+		query = query.Where("sc.status = ?", status)
 	}
 
 	query = query.

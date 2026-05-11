@@ -57,6 +57,36 @@ func (mr *MockSolanaRPCMockRecorder) GetWalletBalance(ctx, wallets any) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWalletBalance", reflect.TypeOf((*MockSolanaRPC)(nil).GetWalletBalance), ctx, wallets)
 }
 
+// GetATARentExemption mocks base method.
+func (m *MockSolanaRPC) GetATARentExemption(ctx context.Context) (uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetATARentExemption", ctx)
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetATARentExemption indicates an expected call of GetATARentExemption.
+func (mr *MockSolanaRPCMockRecorder) GetATARentExemption(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetATARentExemption", reflect.TypeOf((*MockSolanaRPC)(nil).GetATARentExemption), ctx)
+}
+
+// GetRentExemption mocks base method.
+func (m *MockSolanaRPC) GetRentExemption(ctx context.Context, size uint64) (uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRentExemption", ctx, size)
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetRentExemption indicates an expected call of GetRentExemption.
+func (mr *MockSolanaRPCMockRecorder) GetRentExemption(ctx, size any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRentExemption", reflect.TypeOf((*MockSolanaRPC)(nil).GetRentExemption), ctx, size)
+}
+
 // GetWalletTransactions mocks base method.
 func (m *MockSolanaRPC) GetWalletTransactions(ctx context.Context, req *solanarpc.GetTransactionsReq) ([]solanarpc.WalletTransaction, error) {
 	m.ctrl.T.Helper()

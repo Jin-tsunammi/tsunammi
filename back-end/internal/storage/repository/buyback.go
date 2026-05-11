@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"math/big"
 	"mm/internal/model"
 	"mm/pkg/mtype"
@@ -69,6 +70,18 @@ func (r *BuybackRepository) CreateWithTargets(ctx context.Context, campaign *mod
 	return campaign, nil
 }
 
+func (r *BuybackRepository) CreateTarget(ctx context.Context, t *model.SmartBuybackCampaignTarget) (*model.SmartBuybackCampaignTarget, error) {
+	_, err := r.DB.NewInsert().
+		Model(t).
+		Returning("*").
+		Exec(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return t, nil
+}
+
 func (r *BuybackRepository) GetActiveWithTargetsByID(ctx context.Context, campaignID uuid.UUID) (*model.SmartBuybackCampaignWithTargets, error) {
 	campaign := new(model.SmartBuybackCampaignWithTargets)
 
@@ -99,7 +112,7 @@ func (r *BuybackRepository) GetActiveWithTargets(ctx context.Context) ([]model.S
 	if err := r.DB.NewSelect().
 		Model(&campaigns).
 		ModelTableExpr("buyback_campaigns AS bc").
-		Where("bc.status = ?", model.SmartBuybackCampaignStatusActive).
+		Where("bc.status = ?", model.BuybackStatusActive).
 		Order("bc.created_at ASC").
 		Scan(ctx); err != nil {
 		return nil, err
@@ -120,8 +133,8 @@ func (r *BuybackRepository) GetActiveWithTargets(ctx context.Context) ([]model.S
 		ModelTableExpr("buyback_targets AS bt").
 		Where("bt.campaign_id IN (?)", bun.In(campaignIDs)).
 		Where("bt.status IN (?)", bun.In([]string{
-			model.SmartBuybackTargetStatusActive,
-			model.SmartBuybackTargetStatusScheduled,
+			string(model.BuybackStatusActive),
+			string(model.BuybackStatusScheduled),
 		})).
 		Order("bt.created_at ASC").
 		Scan(ctx); err != nil {
@@ -202,27 +215,64 @@ func (r *BuybackRepository) UpdateCampaignError(ctx context.Context, campaignID 
 	_, err := r.DB.NewUpdate().
 		Model((*model.SmartBuybackCampaign)(nil)).
 		Where("id = ?", campaignID).
-		Set("status = ?", model.SmartBuybackCampaignStatusError).
+		Set("status = ?", model.BuybackStatusError).
 		Set("updated_at = ?", time.Now().UTC()).
 		Exec(ctx)
 	return err
+}
+
+func (r *BuybackRepository) UpdateTargetStatus(ctx context.Context, id uuid.UUID, userID uint64, status model.BuybackStatus) error {
+	res, err := r.DB.NewUpdate().
+		TableExpr("buyback_targets AS bt").
+		Set("status = ?", status).
+		Set("updated_at = ?", time.Now().UTC()).
+		Where("bt.id = ?", id).
+		Where("EXISTS (SELECT 1 FROM buyback_campaigns AS bc WHERE bc.id = bt.campaign_id AND bc.user_id = ?)", userID).
+		Exec(ctx)
+	if err != nil {
+		return err
+	}
+
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
+}
+
+func (r *BuybackRepository) GetTarget(ctx context.Context, id uuid.UUID, userID uint64) (*model.SmartBuybackCampaignTarget, error) {
+	var res model.SmartBuybackCampaignTarget
+
+	err := r.DB.NewSelect().
+		Model(&res).
+		ModelTableExpr("buyback_targets AS bt").
+		Join("JOIN buyback_campaigns AS bc ON bc.id = bt.campaign_id").
+		Where("bt.id = ?", id).
+		Where("bc.user_id = ?", userID).
+		Scan(ctx)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &res, nil
 }
 
 func (r *BuybackRepository) UpdateDoneIfNoActiveTargets(ctx context.Context, campaignID uuid.UUID) (bool, error) {
 	result, err := r.DB.NewUpdate().
 		Model((*model.SmartBuybackCampaign)(nil)).
 		Where("id = ?", campaignID).
-		Where("status = ?", model.SmartBuybackCampaignStatusActive).
+		Where("status = ?", model.BuybackStatusActive).
 		Where(`NOT EXISTS (
 			SELECT 1
 			FROM buyback_targets AS bt
 			WHERE bt.campaign_id = ?
 			  AND bt.status IN (?)
 		)`, campaignID, bun.In([]string{
-			model.SmartBuybackTargetStatusActive,
-			model.SmartBuybackTargetStatusScheduled,
+			string(model.BuybackStatusActive),
+			string(model.BuybackStatusScheduled),
 		})).
-		Set("status = ?", model.SmartBuybackCampaignStatusDone).
+		Set("status = ?", model.BuybackStatusDone).
 		Set("updated_at = ?", time.Now().UTC()).
 		Exec(ctx)
 	if err != nil {
@@ -235,4 +285,52 @@ func (r *BuybackRepository) UpdateDoneIfNoActiveTargets(ctx context.Context, cam
 	}
 
 	return rowsAffected > 0, nil
+}
+
+func (r *BuybackRepository) UpdateTarget(ctx context.Context, target *model.SmartBuybackCampaignTarget) (*model.SmartBuybackCampaignTarget, error) {
+	target.UpdatedAt = time.Now().UTC()
+
+	_, err := r.DB.NewUpdate().Model(target).WherePK().Returning("*").Exec(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return target, nil
+}
+
+func (r *BuybackTransactionRepository) FindAllByStatus(ctx context.Context, status string) ([]model.BuybackTransaction, error) {
+	transactions := make([]model.BuybackTransaction, 0)
+
+	err := r.DB.NewSelect().
+		Model(&transactions).
+		Where("status = ?", status).
+		Scan(ctx)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return transactions, nil
+}
+
+func (r *BuybackTransactionRepository) UpdateAll(ctx context.Context, transactions []model.BuybackTransaction) error {
+	if len(transactions) == 0 {
+		return nil
+	}
+
+	values := r.DB.NewValues(&transactions)
+
+	_, err := r.DB.NewUpdate().
+		With("_data", values).
+		Model((*model.BuybackTransaction)(nil)).
+		TableExpr("_data").
+		Set("amount_token_from = (_data.amount_token_from #>> '{}')::numeric").
+		Set("amount_token_to = (_data.amount_token_to #>> '{}')::numeric").
+		Set("status = _data.status").
+		Set("message = _data.message").
+		Set("debug_message = _data.debug_message").
+		Where("bbtx.id = _data.id").
+		Exec(ctx)
+
+	return err
 }

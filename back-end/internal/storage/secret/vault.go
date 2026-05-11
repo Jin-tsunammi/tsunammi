@@ -65,6 +65,6 @@ func (v *vault) SaveSecret(ctx context.Context, path string, secret map[string]a
 }
 
 func (v *vault) DeleteSecret(ctx context.Context, path string) error {
-	_, err := v.ApiClient.Logical().DeleteWithContext(ctx, path)
+	_, err := v.ApiClient.Logical().Delete(path)
 	return err
 }

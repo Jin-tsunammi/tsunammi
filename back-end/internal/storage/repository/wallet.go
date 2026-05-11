@@ -119,6 +119,25 @@ func (r *WalletRepository) DeleteWalletsByIds(ctx context.Context, walletsID []u
 	return nil
 }
 
+func (r *WalletRepository) Delete(ctx context.Context, id, userID uint64) (string, error) {
+	w := &model.Wallet{}
+	res, err := r.DB.NewDelete().
+		Model(w).
+		Where("id = ?", id).
+		Where("user_id = ?", userID).
+		Returning("public_key").
+		Exec(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	if r, _ := res.RowsAffected(); r == 0 {
+		return "", sql.ErrNoRows
+	}
+
+	return w.PublicKey, nil
+}
+
 func (r *WalletRepository) SaveProjectWallets(ctx context.Context, wallets []model.Wallet) error {
 	projectWallets := make([]model.ProjectWallet, 0, len(wallets))
 	for _, wallet := range wallets {
@@ -200,7 +219,7 @@ func (r *WalletRepository) UpdateAllStatus(ctx context.Context, wallets []model.
 	return err
 }
 
-func (r *WalletRepository) FindAllByStatus(ctx context.Context, status model.Status) ([]model.Wallet, error) {
+func (r *WalletRepository) FindAllByStatus(ctx context.Context, status model.WalletStatus) ([]model.Wallet, error) {
 	wallets := make([]model.Wallet, 0)
 
 	err := r.DB.NewSelect().

@@ -1,8 +1,12 @@
 <template>
-  <div class="confirmation-modal">
+  <div :class="['confirmation-modal', headerColor]">
     <slot v-if="isCustomContent" name="confirmation-custom-content"/>
     <template v-else>
-      <div :class="['heading-4', headerColor]">{{modalStore.modalData.title}}</div>
+      <div v-if="headerColor && headerColor !== 'default'" class="status">
+        <SVGSuccessCircle v-if="headerColor === 'success'" />
+        <SVGTriangleWarning v-if="headerColor === 'error'" />
+      </div>
+      <div :class="['heading-4']">{{modalStore.modalData.title}}</div>
       <span class="paragraph-small regular grey">{{mainText}}</span>
       <span class="paragraph-small regular grey addition">{{additionalText}}</span>
       <div :class="['confirmation-modal__btns', {disabled: isLoading}]">
@@ -34,6 +38,8 @@
 import UIButton from "../UIButton.vue";
 import {useModalsStore} from "../../../store/modalsStore.js";
 import UISpinner from "../UISpinner.vue";
+import SVGTriangleWarning from "../../SVG/SVGTriangleWarning.vue";
+import SVGSuccessCircle from "../../SVG/SVGSuccessCircle.vue";
 
 defineProps({
   headerColor: {type: String, default: "default"},
@@ -63,17 +69,44 @@ const modalStore = useModalsStore();
   padding: 32px;
   max-width: 320px;
 
-  & .heading-4 {
-    margin-bottom: 16px;
-    text-align: center;
-
-    &.success {
+  &.success {
+    & .heading-4 {
       color: #16A34A;
     }
 
-    &.error {
+    & .status {
+      background: rgba(22, 163, 74, 0.13);
+    }
+  }
+
+  &.error {
+    & .heading-4 {
       color: #DC2626;
     }
+
+    & .status {
+      background: rgba(220, 38, 38, 0.13);
+    }
+  }
+
+  & .status {
+    width: 38px;
+    height: 38px;
+    border-radius: 6.154px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    & svg {
+      width: 50%;
+      height: 50%;
+    }
+  }
+
+  & .heading-4 {
+    margin-bottom: 16px;
+    text-align: center;
   }
 
   & span {

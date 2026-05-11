@@ -62,11 +62,7 @@
           @handle-blur="handleBlur($event, 'budget')"
         >
           <template #icon-right>
-            <UIGhostSelector
-              :selected-option="selectedAmountType.budget"
-              :options="amountTypes"
-              @handle-option-select="handlePriceTypeSelect($event, 'budget')"
-            />
+            <span class="paragraph-mini regular grey">{{ tokenSymbol }}</span>
           </template>
           <template #bottom-right>
             <UIGhostButtonsGroup
@@ -168,11 +164,7 @@
           @handle-blur="handleBlur($event, 'min_transactions_budget')"
         >
           <template #icon-right>
-            <UIGhostSelector
-              :selected-option="selectedAmountType.min_amount"
-              :options="amountTypes"
-              @handle-option-select="handlePriceTypeSelect($event, 'min_amount')"
-            />
+            <span class="paragraph-mini regular grey">{{ tokenSymbol }}</span>
           </template>
         </UIBaseInput>
 
@@ -187,11 +179,7 @@
           @handle-blur="handleBlur($event, 'max_transactions_budget')"
         >
           <template #icon-right>
-            <UIGhostSelector
-              :selected-option="selectedAmountType.max_amount"
-              :options="amountTypes"
-              @handle-option-select="handlePriceTypeSelect($event, 'max_amount')"
-            />
+            <span class="paragraph-mini regular grey">{{ tokenSymbol }}</span>
           </template>
         </UIBaseInput>
       </div>

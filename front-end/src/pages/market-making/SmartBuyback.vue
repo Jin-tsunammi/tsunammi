@@ -115,12 +115,13 @@
         <ConfirmationModal
           class="modal-stop-campaign"
           v-if="modalsStore.modalData.type === 'stop-campaign'"
-          :is-custom-content="true"
-        >
-          <template #confirmation-custom-content>
-            <ModalStopCampaign @handle-stop-campaign="handleStopCampaign"/>
-          </template>
-        </ConfirmationModal>
+          header-color="error"
+          :main-text="`You are about to stop the campaign`"
+          additional-text="All running transactions will be halted. Remaining budget will stay in your project wallet."
+          confirmation-btn-style="destructive"
+          confirmation-btn-text="Stop campaign"
+          @handle-confirmation="handleStopCampaign"
+        />
       </template>
     </Modals>
   </div>
@@ -144,7 +145,6 @@ import Modals from "../../components/UI/Modals.vue";
 import ConfirmationModal from "../../components/UI/Modals/ConfirmationModal.vue";
 import {useModalsStore} from "../../store/modalsStore.js";
 import ModalAddBudget from "../../components/MarketMakingPages/TargetPullUp/Modals/ModalAddBudget.vue";
-import ModalStopCampaign from "../../components/MarketMakingPages/TargetPullUp/Modals/ModalStopCampaign.vue";
 import PageLoading from "../../components/UI/PageLoading.vue";
 import {cloneDeep, debounce} from "lodash";
 import {useToastStore} from "../../store/toastStore.js";
